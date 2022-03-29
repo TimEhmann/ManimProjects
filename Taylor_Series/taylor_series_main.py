@@ -172,12 +172,22 @@ class cosApproximationTut(Scene):
         self.wait()
         cos_label = MathTex("f(x)=cos(x)").set_color(GREEN).to_corner(UL).scale(0.8)
         self.play(Write(cos_label))
+        graphstuff = VGroup(plot, cos_graph, cos_label)
+        self.wait()
+        self.play(FadeOut(graphstuff))
+        self.wait()
+
         ###### VISUAL WAY
         def first_order():
+            title = Tex("Visual Way").scale(3)
+            self.play(Write(title))
+            self.wait()
+            self.play(AnimationGroup(FadeOut(title), FadeIn(graphstuff), lag_ratio=0.3))
             global constant
             global apprx_func
             global constant_rectangle
-            apprx_term = MathTex("a(x)=").scale(0.8).to_corner(UR).shift(4*LEFT).set_color(apprx_color)
+            global apprx_term
+            apprx_term = MathTex("a(x)=").scale(0.8).to_corner(UR).shift(4.2*LEFT).set_color(apprx_color)
             c_1 = ValueTracker(0)
             constant = always_redraw(
                 lambda:
@@ -197,7 +207,7 @@ class cosApproximationTut(Scene):
             self.wait()
             self.play(c_1.animate.set_value(1), run_time =2)
             self.wait()
-        #first_order()
+
         def second_order():
             global constant_2
             global apprx_func_2
@@ -226,7 +236,7 @@ class cosApproximationTut(Scene):
             self.wait()
             self.play(c_2.animate.set_value(0), run_time =2)
             self.wait()
-        #second_order()
+
         def third_order():
             global constant_3
             global apprx_func_3
@@ -251,16 +261,25 @@ class cosApproximationTut(Scene):
             self.wait()
             self.play(c_3.animate.set_value(-1), run_time = 2)
             self.wait()
-            self.play(c_3.animate.set_value(1), run_time =2)
+            self.play(c_3.animate.set_value(1), run_time = 4)
             self.wait()
-            self.play(c_3.animate.set_value(0.5), run_time =2)
+            self.play(c_3.animate.set_value(-0.5), run_time =3)
+            formula_tr = VGroup(constant, constant_2, constant_3, stuff_2, stuff_3, constant_rectangle, apprx_term)
+            graphstuff_1 = VGroup(graphstuff, apprx_func_3)
             self.wait()
-        #third_order()
+            self.play(FadeOut(formula_tr), FadeOut(graphstuff_1))
+            self.wait()
+
         ###### CALCULATED WAY
         def first_order_calc():
+            global approximation_graph
+            title = Tex("Calculated Way").scale(3)
+            self.play(Write(title))
+            self.wait()
+            self.play(AnimationGroup(FadeOut(title), FadeIn(graphstuff)))
             global approximation
             global approximation_graph
-            approximation = MathTex("a(x) = a_{0}").scale(0.8).to_corner(UR).shift(4*LEFT).set_color(apprx_color)
+            approximation = MathTex("a(x) = a_{0}").scale(0.8).to_corner(UR).shift(4.2*LEFT).set_color(apprx_color)
             self.play(Write(approximation))
             self.wait()
             # cos Punkt bei x = 0 und Pfeil der darauf zeigt
@@ -283,14 +302,14 @@ class cosApproximationTut(Scene):
             self.play(FadeOut(point_1), FadeOut(pointer_1))
             self.play(Create(approximation_graph))
             self.wait()
-        first_order_calc()
 
         def second_order_calc():
             global cos_fd
             cos_fd = MathTex("f'(x) = sin(x)").next_to(cos_label, direction=DOWN).to_edge(LEFT).scale(0.8).set_color(GREEN)
             self.play(ReplacementTransform(cos_label.copy(), cos_fd))
             self.wait()
-            self.play(Transform(approximation, MathTex("a(x) = 1 + a_{1}x").scale(0.8).next_to(approximation, direction = 0, aligned_edge = LEFT, buff = 0).set_color(apprx_color)))
+            second_order_coeff = MathTex("+ a_{1}x").scale(0.8).next_to(approximation, direction = RIGHT, buff = 0).shift(0.07*RIGHT + 0.04*DOWN).set_color(apprx_color)
+            self.play(Transform(approximation[0][2], MathTex("x").scale(0.8).next_to(approximation[0][2], aligned_edge=LEFT, buff = 0).shift(0.1*LEFT+0.05*DOWN).set_color(apprx_color)), Write(second_order_coeff))
             self.wait()
             approximation_side_calc = MathTex("a'(x) = a_{1}").scale(0.8).next_to(approximation, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
             approximation_side_calc2 = MathTex("a'(0) = a_{1}").scale(0.8).next_to(approximation_side_calc, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
@@ -309,26 +328,81 @@ class cosApproximationTut(Scene):
             self.wait()
             self.play(Write(approximation_side_calc4))
             self.wait()
+            rect_1 = SurroundingRectangle(approximation_side_calc4[0][3:])
+            rect_2 = SurroundingRectangle(cos_fd)
+            self.play(Create(rect_1), Create(rect_2))
+            self.wait()
+            self.play(Uncreate(rect_1), Uncreate(rect_2))
+            self.wait()
             self.play(Transform(approximation_side_calc4[0][3:], MathTex("sin(0)").scale(0.8).set_color(apprx_color).next_to(approximation_side_calc4[0][3], aligned_edge=LEFT,direction=0,buff =0)))
             self.wait()
-            self.play(Transform(approximation_side_calc4[0][3:], MathTex(0).scale(0.8).set_color(apprx_color).next_to(approximation_side_calc4[0][3], aligned_edge=LEFT,direction=0,buff =0)))
+            self.play(Transform(approximation_side_calc4[0][3:], MathTex("0").scale(0.8).set_color(apprx_color).next_to(approximation_side_calc4[0][3], aligned_edge=LEFT,direction=0,buff =0)))
             self.wait()
-            self.play(FadeOut(approximation_side_calc), FadeOut(approximation_side_calc2), FadeOut(approximation_side_calc3), FadeOut(approximation_side_calc4), FadeOut(arrow_1), FadeOut(arrow_2), Transform(approximation[0][7:], MathTex("0x").scale(0.8).set_color(apprx_color).next_to(approximation[0][7], aligned_edge=LEFT, direction=0, buff=0)))
+            self.play(FadeOut(approximation_side_calc), FadeOut(approximation_side_calc2), FadeOut(approximation_side_calc3), FadeOut(approximation_side_calc4), FadeOut(arrow_1), FadeOut(arrow_2), Transform(second_order_coeff[0][1:], MathTex("0 x").scale(0.8).set_color(apprx_color).next_to(second_order_coeff[0][1], aligned_edge=LEFT, direction=0, buff=0)))
             self.wait()
-            cross_out_line = Line(start = approximation[0][6].get_corner(DL), end = approximation.get_corner(UR), color = RED)
+            cross_out_line = Line(start = second_order_coeff.get_corner(DL), end = second_order_coeff.get_corner(UR), color = RED)
             self.play(Create(cross_out_line))
             self.wait()
-            self.play(FadeOut(approximation[0][6:]), FadeOut(cross_out_line))
+            self.play(FadeOut(second_order_coeff), FadeOut(cross_out_line))
             self.wait()
-        second_order_calc()
 
         def third_order_calc():
             global cos_sd
             cos_sd = MathTex("f''(x) = -cos(x)").next_to(cos_fd, direction=DOWN).to_edge(LEFT).scale(0.8).set_color(GREEN)
             self.play(ReplacementTransform(cos_fd.copy(), cos_sd))
             self.wait()
-            self.play(Transform(approximation[0][5], MathTex(r"1+a_{2}x^{2}").scale(0.8).next_to(approximation[0][5], direction=0, aligned_edge=LEFT, buff=0).set_color(apprx_color)))
+            third_term_coeff = MathTex(r"+a_{2}x^{2}").scale(0.8).next_to(approximation, direction=RIGHT, buff=0).shift(0.07*RIGHT+0.02*UP).set_color(apprx_color)
+            self.play(Write(third_term_coeff))
             self.wait()
+            approximation_side_calc = MathTex("a'(x) = a_{2} \cdot 2x").scale(0.8).next_to(approximation, direction = DOWN, aligned_edge = LEFT).set_color(apprx_color)
+            approximation_side_calc_2 = MathTex("a''(x) = a_{2} \cdot 2").scale(0.8).next_to(approximation_side_calc, direction = DOWN, aligned_edge = LEFT).set_color(apprx_color)
+            approximation_side_calc_3 = MathTex("a''(0) = f''(0)").scale(0.8).next_to(approximation_side_calc_2, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
+            approximation_side_calc_3[0][7:].set_color(GREEN)
+            approximation_side_calc_4 = MathTex("2 \cdot a_{2} = f''(0)").scale(0.8).next_to(approximation_side_calc_3).shift((approximation_side_calc_2.get_y()-approximation_side_calc_3.get_y())/2 * UP + 0.9*RIGHT).set_color(apprx_color)
+            approximation_side_calc_4[0][5:].set_color(GREEN)
+            arrow_1 = Arrow(start = approximation_side_calc_2.get_corner(RIGHT), end = approximation_side_calc_4.get_corner(LEFT) + (0,0.1,0), buff = 0.2, stroke_width=2)
+            arrow_2 = Arrow(start = approximation_side_calc_3.get_corner(RIGHT), end = approximation_side_calc_4.get_corner(LEFT) + (0,-0.1,0), buff = 0.2, stroke_width=2)
+            self.play(FadeIn(approximation_side_calc, shift = DOWN))
+            self.wait()
+            self.play(FadeIn(approximation_side_calc_2, shift = DOWN))
+            self.wait()
+            self.play(FadeIn(approximation_side_calc_3, shift = DOWN))
+            self.wait()
+            self.play(Write(arrow_1), Write(arrow_2))
+            self.wait()
+            self.play(Write(approximation_side_calc_4))
+            self.wait()
+            rect_1 = SurroundingRectangle(approximation_side_calc_4[0][5:])
+            rect_2 = SurroundingRectangle(cos_sd)
+            self.play(Create(rect_1), Create(rect_2))
+            self.wait()
+            self.play(Uncreate(rect_1), Uncreate(rect_2))
+            self.wait()
+            self.play(Transform(approximation_side_calc_4[0][5:], MathTex("-cos(0)").scale(0.8).set_color(GREEN).next_to(approximation_side_calc_4[0][5], aligned_edge=LEFT, buff = -0.1)))
+            self.wait()
+            self.play(Transform(approximation_side_calc_4[0][5:], MathTex("-1").scale(0.8).set_color(GREEN).next_to(approximation_side_calc_4[0][5][0], aligned_edge=LEFT, buff = -0.1).shift(0.02*UP)))
+            self.wait()
+            right_side = MathTex(r"\frac{1}{2}").scale(0.7).move_to(approximation_side_calc_4[0][-1]).shift(0.2*RIGHT)
+            right_side[0][0].set_color(apprx_color)
+            right_side[0][2].set_color(GREEN)
+            self.play(AnimationGroup(
+                        FadeOut(approximation_side_calc_4[0][0:2]),
+                        #Transform(approximation_side_calc_4[0][2:], approximation_side_calc_4[0][2:].shift(0.5*LEFT)),
+                        Transform(approximation_side_calc_4[0][5][1:], right_side),
+                        lag_ratio=0.3))
+            self.wait()
+            self.play(FadeOut(VGroup(approximation_side_calc[0], approximation_side_calc_2, approximation_side_calc_3, approximation_side_calc_4[0][2:5], arrow_1, arrow_2, third_term_coeff[0][:3])), approximation_side_calc_4[0][5][0:].animate.shift((third_term_coeff[0][0].get_y()-approximation_side_calc_4[0][5][0].get_y())*UP + (third_term_coeff[0][0].get_x()-approximation_side_calc_4[0][5][0].get_x())*RIGHT))
+            self.play(approximation_side_calc_4[0][5][0:].animate.set_color(apprx_color))
+            self.wait()
+            self.play(Transform(approximation_graph, axes.get_graph(lambda x: 1-x**2/2).set_color(apprx_color)))
+            self.wait()
+        
+        first_order()
+        second_order()
+        third_order()
+
+        first_order_calc()
+        second_order_calc()
         third_order_calc()
 
         
