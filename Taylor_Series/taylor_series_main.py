@@ -144,7 +144,20 @@ class cosapproximationGoal(Scene):
 
         show_cosine_approximation_n_to_m(0,10)
 
-class cosApproximationTut(Scene):
+class cosApproximationTut(ZoomedScene):
+    def __init__(self, **kwargs):
+        ZoomedScene.__init__(
+            self,
+            zoom_factor=0.3,
+            zoomed_display_height=3,
+            zoomed_display_width=8,
+            image_frame_stroke_width=1,
+            zoomed_camera_config={
+                "default_frame_stroke_width": 1,
+                },
+            **kwargs
+        )
+
     def construct(self):
         apprx_color = PURPLE_C
         axes = Axes(
@@ -259,6 +272,26 @@ class cosApproximationTut(Scene):
             self.remove(apprx_func_2)
             self.add(apprx_func_3)
             self.wait()
+            zoomed_camera = self.zoomed_camera
+            zoomed_display = self.zoomed_display
+            frame = zoomed_camera.frame
+            zoomed_display_frame = zoomed_display.display_frame
+
+            frame.move_to(0.7*UP)
+            frame.set_color(LIGHT_BROWN)
+            zoomed_display_frame.set_color(RED)
+            zoomed_display.move_to(0.7*UP)
+
+            zd_rect = BackgroundRectangle(zoomed_display, fill_opacity=0, buff=MED_SMALL_BUFF)
+            self.add_foreground_mobject(zd_rect)
+
+            unfold_camera = UpdateFromFunc(zd_rect, lambda rect: rect.replace(zoomed_display))
+
+            self.play(Create(frame))
+            self.activate_zooming()
+
+            self.play(self.get_zoomed_display_pop_out_animation(), unfold_camera)
+            self.wait()
             self.play(c_3.animate.set_value(-1), run_time = 2)
             self.wait()
             self.play(c_3.animate.set_value(1), run_time = 4)
@@ -266,6 +299,9 @@ class cosApproximationTut(Scene):
             self.play(c_3.animate.set_value(-0.5), run_time =3)
             formula_tr = VGroup(constant, constant_2, constant_3, stuff_2, stuff_3, constant_rectangle, apprx_term)
             graphstuff_1 = VGroup(graphstuff, apprx_func_3)
+            self.wait()
+            self.play(self.get_zoomed_display_pop_out_animation(), unfold_camera, rate_func=lambda t: smooth(1 - t))
+            self.play(Uncreate(zoomed_display_frame), FadeOut(frame))
             self.wait()
             self.play(FadeOut(formula_tr), FadeOut(graphstuff_1))
             self.wait()
@@ -401,9 +437,9 @@ class cosApproximationTut(Scene):
         second_order()
         third_order()
 
-        first_order_calc()
-        second_order_calc()
-        third_order_calc()
+        #first_order_calc()
+        #second_order_calc()
+        #third_order_calc()
 
         
 
