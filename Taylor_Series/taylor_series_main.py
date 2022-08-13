@@ -15,7 +15,7 @@ def derivative(func, x, order=1, dx = 0.01):        #Wenn nichts anderes angegeb
 
 
 def taylor_approximation(func, term_count, center_point = 0):
-    """Taylor Annäherung einer Funktion mit k Termen an Entwicklungsstelle a"""
+    """Taylor Annäherung einer Funktion mit k Termen an Entwicklungsstelle a (bis x^term_count)"""
     coefficients = [
         derivative(func, center_point,n)/math.factorial(n)
         for n in range(term_count +1)
@@ -26,15 +26,15 @@ def taylor_approximation(func, term_count, center_point = 0):
     ])
 
 def taylorseries_cosine(x, degree):
-    """Wert von x abhängig vom Grad der Annäherung"""
+    """Wert von x abhängig vom Grad der Annäherung (bis x^(2*degree))"""
     return sum([(-1)**i*x**(2*i)/math.factorial(2*i) for i in range(degree + 1)])
 
 def taylorseries_sine(x, degree):
-    """Wert von x abhängig vom Grad der Annäherung"""
+    """Wert von x abhängig vom Grad der Annäherung (bis x^(2*degree+1)"""
     return sum([(-1)**i*x**(2*i+1)/math.factorial(2*i+1) for i in range(degree + 1)])
 
 def taylorseries_exp(x, degree):
-    """Wert von x abhängig vom Grad der Annäherung"""
+    """Wert von x abhängig vom Grad der Annäherung (bis x^degree)"""
     return sum([x**i/math.factorial(i) for i in range(degree + 1)])
 
 
@@ -350,6 +350,7 @@ class cosApproximationTut(ZoomedScene):
             approximation_side_calc = MathTex("a'(x) = a_{1}").scale(0.8).next_to(approximation, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
             approximation_side_calc2 = MathTex("a'(0) = a_{1}").scale(0.8).next_to(approximation_side_calc, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
             approximation_side_calc3 = MathTex("a'(0) = f'(0)").scale(0.8).next_to(approximation_side_calc2, direction=DOWN, aligned_edge=LEFT).set_color(apprx_color)
+            approximation_side_calc3[0][6:].set_color(GREEN)
             approximation_side_calc4 = MathTex("a_{1} = f'(0)").scale(0.8).next_to(approximation_side_calc3).set_color(apprx_color).shift((approximation_side_calc2.get_y() - approximation_side_calc3.get_y())/2*UP + RIGHT)
             arrow_1 = Arrow(start = approximation_side_calc2.get_corner(RIGHT) + (0.47,0,0), end = approximation_side_calc4.get_corner(LEFT) + (0,0.1,0), buff = 0.2, stroke_width=2)
             arrow_2 = Arrow(start = approximation_side_calc3.get_corner(RIGHT), end = approximation_side_calc4.get_corner(LEFT) + (0,-0.1,0), buff = 0.2, stroke_width=2)
@@ -383,6 +384,8 @@ class cosApproximationTut(ZoomedScene):
             self.wait()
 
         def third_order_calc():
+            global approximation_side_calc_4
+            global third_term_coeff
             global cos_sd
             cos_sd = MathTex("f''(x) = -cos(x)").next_to(cos_fd, direction=DOWN).to_edge(LEFT).scale(0.8).set_color(GREEN)
             self.play(ReplacementTransform(cos_fd.copy(), cos_sd))
@@ -433,15 +436,74 @@ class cosApproximationTut(ZoomedScene):
             self.play(Transform(approximation_graph, axes.get_graph(lambda x: 1-x**2/2).set_color(apprx_color)))
             self.wait()
         
+        def show_more_terms():
+            self.wait()
+            function_term = VGroup(approximation, third_term_coeff[0][3:],approximation_side_calc_4[0][5])
+            function_term.shift(3*LEFT)
+
+            new_term = MathTex(r'+\frac{x^4}{24}').scale(0.8).set_color(apprx_color).next_to(approximation_side_calc_4[0][5], direction=RIGHT, buff = 0.6)
+            function_term.add(new_term)
+            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,2)).set_color(apprx_color)),
+                        Write(new_term))
+            self.wait()
+
+            new_term = MathTex(r'-\frac{x^6}{720}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
+            function_term.add(new_term)
+            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,3)).set_color(apprx_color)),
+                        Write(new_term))
+            self.wait()
+
+            new_term = MathTex(r'+\frac{x^8}{40320}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
+            function_term.add(new_term)
+            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,4)).set_color(apprx_color)),
+                        Write(new_term))
+            self.wait()
+
+            new_term = MathTex(r'-\frac{x^{10}}{3628800}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
+            function_term.add(new_term)
+            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,5)).set_color(apprx_color)),
+                        Write(new_term))
+            self.wait()
+            #self.play(FadeOut(function_term))
+
         first_order()
         second_order()
         third_order()
 
-        #first_order_calc()
-        #second_order_calc()
-        #third_order_calc()
+        first_order_calc()
+        second_order_calc()
+        third_order_calc()
+        show_more_terms()
 
-        
+class full_formula(Scene):
+    def construct(self):
+        apprx_color = PURPLE_C
+        axes = Axes(
+            x_range = [-2.2*np.pi, 2.2*np.pi, np.pi],
+            y_range = [-2.5, 2.5],
+            x_length = 13,
+            y_length = 7,
+            axis_config={"color": BLUE},
+            y_axis_config={"include_numbers": True, "decimal_number_config": {"num_decimal_places": 0}},
+            tips = True
+        )
+
+
+class RadiusOfConvergence(Scene):
+    def value_of_nth_derivative_at_x(a: float, x: float, n: int) ->float:
+        """Return the values of the n-th derivative at x of a function of the form
+        1/(x^2+a)"""
+        derivatives = {"0": lambda x,a: 1/(x**2+a)}
+        print()
+    def construct(self):
+        axes = Axes(
+
+        )
+
+class Cos_Formula_Deviation(Scene):
+    def construct(self):
+        cos_label = MathTex("f(x)=cos(x)").set_color(GREEN).to_corner(UL).scale(0.8)
+        self.play(Write(cos_label))
 
 class TestScene(Scene):
     def construct(self):
