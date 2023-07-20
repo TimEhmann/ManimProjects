@@ -1,17 +1,19 @@
-from manim import *
+"""Manim-Animiertes Video für die Taylorreihe einer Funktion"""
+
 import math
-import functools
+#import functools
+from manim import *
 
 
 def derivative(func, x, order=1, dx = 0.01):        #Wenn nichts anderes angegeben, wird die erste Ableitung mit dx = 0.01 zurückgegeben
     """n-te Ableitung einer Funktion an Stelle x mit dx von 0.01"""
     partial = [func(x + (i - order/2)*dx) for i in range(order+1)]
-    while(len(partial) > 1):
+    while len(partial) > 1:
         partial = [
             (partial[j+1] - partial[j])/dx
             for j in range(len(partial)-1)
         ]
-    return(partial[0])
+    return partial[0]
 
 
 def taylor_approximation(func, term_count, center_point = 0):
@@ -27,18 +29,21 @@ def taylor_approximation(func, term_count, center_point = 0):
 
 def taylorseries_cosine(x, degree):
     """Wert von x abhängig vom Grad der Annäherung (bis x^(2*degree))"""
-    return sum([(-1)**i*x**(2*i)/math.factorial(2*i) for i in range(degree + 1)])
+    return sum((-1)**i*x**(2*i)/math.factorial(2*i) for i in range(degree + 1))
 
 def taylorseries_sine(x, degree):
     """Wert von x abhängig vom Grad der Annäherung (bis x^(2*degree+1)"""
-    return sum([(-1)**i*x**(2*i+1)/math.factorial(2*i+1) for i in range(degree + 1)])
+    return sum((-1)**i*x**(2*i+1)/math.factorial(2*i+1) for i in range(degree + 1))
 
 def taylorseries_exp(x, degree):
     """Wert von x abhängig vom Grad der Annäherung (bis x^degree)"""
-    return sum([x**i/math.factorial(i) for i in range(degree + 1)])
+    return sum(x**i/math.factorial(i) for i in range(degree + 1))
 
 
-class openingSzene(Scene):
+class OpeningSzene(Scene):
+    """Öffnungs Szene, in der eine Funktion, die wie eine Sinus Funktion aussieht,
+    aber nicht ist, gezeigt wird. Dann wird das Bild herausgezoomt, wodurch deutlich
+    wird, dass es sich nicht um eine Sinus Funktion handelt."""
     def construct(self):
         axes = Axes(
             x_range = [-5.5*np.pi, 5.5*np.pi, np.pi],
@@ -60,11 +65,11 @@ class openingSzene(Scene):
             MathTex("\pi"), MathTex("2\pi"), MathTex("3\pi"), MathTex("4\pi"), MathTex("5\pi")
         ]
         plot = VGroup()
-        for i in range(len(x_labels)):
-            x_labels[i].add_background_rectangle().next_to(np.array([ x_scale_factor*(-6 + 12/(11*np.pi) + (6-12/(11*np.pi))/5*i), 0, 0]), 0.5*DOWN).scale(0.7)
-            self.add_foreground_mobject(x_labels[i])
-            plot = VGroup(x_labels[i], plot)
-        sin_graph = axes.get_graph(lambda x: taylorseries_sine(x,15), color = GREEN)
+        for i,label in enumerate(x_labels):
+            label.add_background_rectangle().next_to(np.array([ x_scale_factor*(-6 + 12/(11*np.pi) + (6-12/(11*np.pi))/5*i), 0, 0]), 0.5*DOWN).scale(0.7)
+            self.add_foreground_mobject(label)
+            plot = VGroup(label, plot)
+        sin_graph = axes.plot(lambda x: taylorseries_sine(x,15), color = GREEN)
         sin_graph.apply_matrix([[x_scale_factor,0], [0,1]])
         sin_label = MathTex("f(x)=sin(x)").next_to(np.array([0.75, 1.5, 0])).set_color(GREEN)
         plot = VGroup(axes, plot)
@@ -100,7 +105,8 @@ class openingSzene(Scene):
         self.play(FadeOut(*self.mobjects))
 
 
-class cosapproximationGoal(Scene):
+class CosApproximationGoal(Scene):
+    """Zeigt ein Beispiel für die Approximation eines Cos durch eine Taylorreihenentwicklung"""
     def construct(self):
         axes = Axes(
             x_range = [-2.2*np.pi, 2.2*np.pi, np.pi],
@@ -113,13 +119,13 @@ class cosapproximationGoal(Scene):
         )
         plot = VGroup(axes)
         x_labels = [
-            MathTex("-2\pi"), MathTex ("-\pi"), 
-            MathTex(""), 
-            MathTex("\pi"), MathTex("2\pi")
+            MathTex(r"-2\pi"), MathTex (r"-\pi"),
+            MathTex(r""),
+            MathTex(r"\pi"), MathTex(r"2\pi")
         ]
-        for i in range(len(x_labels)):
-            x_labels[i].add_background_rectangle().next_to(np.array([-26/4.4+i*13/4.4, 0, 0]), DOWN).scale(0.7)
-            plot = VGroup(plot, x_labels[i])
+        for i, label in enumerate(x_labels):
+            label.add_background_rectangle().next_to(np.array([-26/4.4+i*13/4.4, 0, 0]), DOWN).scale(0.7)
+            plot = VGroup(plot, label)
         self.play(FadeIn(plot))
     
         approximation_term_parts = [MathTex("f(x) = ").set_color(GREEN).to_corner(UL), MathTex("1"), MathTex(r"-\frac{x^{2}}{2}"),
@@ -129,12 +135,12 @@ class cosapproximationGoal(Scene):
             self.play(Write(approximation_term_parts[0]))
             for i in range(start_degree, finish_degree+1):
                 if i == start_degree:
-                    cos_appr = axes.get_graph(lambda x: taylorseries_cosine(x, i), color = GREEN)
+                    cos_appr = axes.plot(lambda x: taylorseries_cosine(x, i), color = GREEN)
                     approximation_term_parts[i+1].scale(0.8).next_to(approximation_term_parts[i]).set_color(GREEN)
                     self.play(Create(cos_appr), Write(approximation_term_parts[i+1]))
                     self.wait()
                 else:
-                    next_iteration = axes.get_graph(lambda x: taylorseries_cosine(x, i), color = GREEN)
+                    next_iteration = axes.plot(lambda x: taylorseries_cosine(x, i), color = GREEN)
                     if i < len(approximation_term_parts)-1:
                         approximation_term_parts[i+1].scale(0.8).next_to(approximation_term_parts[i]).set_color(GREEN)
                         self.play(Transform(cos_appr, next_iteration), Write(approximation_term_parts[i+1]))
@@ -144,7 +150,9 @@ class cosapproximationGoal(Scene):
 
         show_cosine_approximation_n_to_m(0,10)
 
-class cosApproximationTut(ZoomedScene):
+class CosApproximationTut(ZoomedScene):
+    """Erklärt die Berechnung der Approximation eines Cos durch eine
+    Taylorreihenentwicklung zuerst visuell und dann mathematisch"""
     def __init__(self, **kwargs):
         ZoomedScene.__init__(
             self,
@@ -171,14 +179,14 @@ class cosApproximationTut(ZoomedScene):
         )
         plot = VGroup(axes)
         x_labels = [
-            MathTex("-2\pi"), MathTex ("-\pi"), 
-            MathTex(""), 
-            MathTex("\pi"), MathTex("2\pi")
+            MathTex(r"-2\pi"), MathTex (r"-\pi"),
+            MathTex(r""),
+            MathTex(r"\pi"), MathTex(r"2\pi")
         ]
-        for i in range(len(x_labels)):
-            x_labels[i].add_background_rectangle().next_to(np.array([-26/4.4+i*13/4.4, 0, 0]), DOWN).scale(0.7)
-            plot = VGroup(plot, x_labels[i])
-        cos_graph = axes.get_graph(lambda x: math.cos(x) , color = GREEN)
+        for i,label in enumerate(x_labels):
+            label.add_background_rectangle().next_to(np.array([-26/4.4+i*13/4.4, 0, 0]), DOWN).scale(0.7)
+            plot = VGroup(plot,label)
+        cos_graph = axes.plot(lambda x: math.cos(x) , color = GREEN)
         self.play(FadeIn(VGroup(axes, plot).shift(0.5*DOWN)))
         self.wait()
         self.play(Create(cos_graph.shift(0.5*DOWN)))
@@ -209,7 +217,7 @@ class cosApproximationTut(ZoomedScene):
             constant_rectangle = SurroundingRectangle(constant, buff = 0.1, color = ORANGE)
             apprx_func = always_redraw(
                 lambda:
-                    axes.get_graph(
+                    axes.plot(
                         lambda x:
                         c_1.get_value()).set_color(apprx_color)
                 )
@@ -234,7 +242,7 @@ class cosApproximationTut(ZoomedScene):
             stuff_2 = MathTex(r"\cdot{x}").scale(0.7).next_to(constant_2.get_corner(RIGHT), aligned_edge = LEFT, buff = 0.15).set_color(apprx_color)
             apprx_func_2 = always_redraw(
                 lambda:
-                    axes.get_graph(
+                    axes.plot(
                         lambda x:
                         c_2.get_value()*x+1).set_color(apprx_color)
                 )
@@ -263,7 +271,7 @@ class cosApproximationTut(ZoomedScene):
             stuff_3 = MathTex(r"\cdot{x}^{2}").scale(0.7).next_to(constant_3.get_corner(RIGHT), aligned_edge = LEFT, buff = 0.15).set_color(apprx_color).shift(0.05*UP)
             apprx_func_3 = always_redraw(
                 lambda:
-                    axes.get_graph(
+                    axes.plot(
                         lambda x:
                         c_3.get_value()*x**2+1).set_color(apprx_color)
                 )
@@ -327,7 +335,7 @@ class cosApproximationTut(ZoomedScene):
             self.wait()
             approximation_side_calc = MathTex("= cos(0)").scale(0.8).next_to(approximation[0][4], direction = DOWN, aligned_edge=LEFT).set_color(apprx_color)
             approximation_side_calc_2 = MathTex("= 1").scale(0.8).next_to(approximation_side_calc, direction = DOWN, aligned_edge=LEFT).set_color(apprx_color)
-            approximation_graph = axes.get_graph(lambda x: 1, color = apprx_color)
+            approximation_graph = axes.plot(lambda x: 1, color = apprx_color)
             self.play(FadeIn(approximation_side_calc, shift = DOWN))
             self.wait()
             self.play(FadeIn(approximation_side_calc_2, shift = DOWN))
@@ -433,7 +441,7 @@ class cosApproximationTut(ZoomedScene):
             self.play(FadeOut(VGroup(approximation_side_calc[0], approximation_side_calc_2, approximation_side_calc_3, approximation_side_calc_4[0][2:5], arrow_1, arrow_2, third_term_coeff[0][:3])), approximation_side_calc_4[0][5][0:].animate.shift((third_term_coeff[0][0].get_y()-approximation_side_calc_4[0][5][0].get_y())*UP + (third_term_coeff[0][0].get_x()-approximation_side_calc_4[0][5][0].get_x())*RIGHT))
             self.play(approximation_side_calc_4[0][5][0:].animate.set_color(apprx_color))
             self.wait()
-            self.play(Transform(approximation_graph, axes.get_graph(lambda x: 1-x**2/2).set_color(apprx_color)))
+            self.play(Transform(approximation_graph, axes.plot(lambda x: 1-x**2/2).set_color(apprx_color)))
             self.wait()
         
         def show_more_terms():
@@ -443,25 +451,25 @@ class cosApproximationTut(ZoomedScene):
 
             new_term = MathTex(r'+\frac{x^4}{24}').scale(0.8).set_color(apprx_color).next_to(approximation_side_calc_4[0][5], direction=RIGHT, buff = 0.6)
             function_term.add(new_term)
-            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,2)).set_color(apprx_color)),
+            self.play(Transform(approximation_graph, axes.plot(lambda x: taylorseries_cosine(x,2)).set_color(apprx_color)),
                         Write(new_term))
             self.wait()
 
             new_term = MathTex(r'-\frac{x^6}{720}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
             function_term.add(new_term)
-            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,3)).set_color(apprx_color)),
+            self.play(Transform(approximation_graph, axes.plot(lambda x: taylorseries_cosine(x,3)).set_color(apprx_color)),
                         Write(new_term))
             self.wait()
 
             new_term = MathTex(r'+\frac{x^8}{40320}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
             function_term.add(new_term)
-            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,4)).set_color(apprx_color)),
+            self.play(Transform(approximation_graph, axes.plot(lambda x: taylorseries_cosine(x,4)).set_color(apprx_color)),
                         Write(new_term))
             self.wait()
 
             new_term = MathTex(r'-\frac{x^{10}}{3628800}').scale(0.8).set_color(apprx_color).next_to(new_term, direction=RIGHT, buff = 0.1)
             function_term.add(new_term)
-            self.play(Transform(approximation_graph, axes.get_graph(lambda x: taylorseries_cosine(x,5)).set_color(apprx_color)),
+            self.play(Transform(approximation_graph, axes.plot(lambda x: taylorseries_cosine(x,5)).set_color(apprx_color)),
                         Write(new_term))
             self.wait()
             #self.play(FadeOut(function_term))
@@ -479,14 +487,80 @@ class full_formula(Scene):
     def construct(self):
         apprx_color = PURPLE_C
         axes = Axes(
-            x_range = [-2.2*np.pi, 2.2*np.pi, np.pi],
-            y_range = [-2.5, 2.5],
+            x_range = [-10, 10, 2],
+            y_range = [-6, 6],
             x_length = 13,
             y_length = 7,
-            axis_config={"color": BLUE},
-            y_axis_config={"include_numbers": True, "decimal_number_config": {"num_decimal_places": 0}},
+            axis_config={"color": BLUE, "include_numbers": True, "decimal_number_config": {"num_decimal_places": 0}},
+            #y_axis_config={"include_numbers": True, "decimal_number_config": {"num_decimal_places": 0}},
             tips = True
         )
+
+        def roadmap_text_and_formula():
+            '''Writes the roadmap of how to get the full formula to the left of the screen'''
+            step_1 = Text("1: Werte der Ableitungen des Polynom\nund der zu approximierenden Funktion\nsollen identisch sein").scale(0.65).to_corner(UL).shift(0.5*DOWN)
+            step_2 = Text("2: Polynomreihe mit unendlich vielen\nTermen für die höchste Genauigkeit").scale(0.65).next_to(step_1, direction=DOWN, aligned_edge=LEFT, buff = 0.5)
+            step_3 = Text("3: Der n-te Term der Reihe repräsentiert\ndie Ableitungsinformation der n-ten\nAbleitung der zu approximierenden Funktion").scale(0.65).next_to(step_2, direction=DOWN, aligned_edge=LEFT, buff = 0.5)
+
+            #formula 1 to top right
+            formula_1 = MathTex(r"T\left(x\right)=\frac{c\cdot x^{n}}{n!}").scale(0.8).to_corner(UR).shift(0.5*DOWN+0.7*LEFT)
+            formula_2 = MathTex(r"T^{\left(n\right)}\left(x\right)=\frac{c\cdot n!}{n!}").scale(0.8).next_to(formula_1, direction=DOWN, aligned_edge=LEFT, buff = 0.5)
+            
+            # formula 3 in the lower center
+            formula_3_1 = MathTex(r"T(x)=?").scale(0.9).to_edge(DOWN).shift(0.5*UP)
+            formula_3_2 = MathTex(r"T\left(x\right)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(0\right)}{n!}\cdot x^{n}").scale(0.9).to_edge(DOWN).shift(0.5*UP)
+
+            self.play(Write(step_1))
+            self.wait()
+            self.play(Write(step_2))
+            self.wait()
+            self.play(Write(step_3))
+            self.wait()
+
+            self.play(Write(formula_3_1))
+            self.wait()
+            self.play(Write(formula_1))
+            self.wait()
+            self.play(Write(formula_2))
+            self.wait()
+
+            # cancel out the n!/n! in the second formula
+            self.play(formula_2[0][10:12].animate.set_color(RED), formula_2[0][13:15].animate.set_color(RED))
+            self.wait()
+            self.play(FadeOut(formula_2[0][9:]), formula_2[0][8].animate.shift(0.27*DOWN))
+            self.wait()
+            #replace c with f^(n)(0)
+            self.play(Transform(formula_2[0][8], MathTex(r"f^{\left(n\right)}\left(0\right)").scale(0.8).next_to(formula_2[0][8], aligned_edge=LEFT, buff = 0)))
+            self.wait()
+
+
+            self.play(Transform(formula_3_1, formula_3_2))
+            self.wait()
+
+            # can we just just a instead of 0?
+            self.play(Transform(formula_3_1[0][15], MathTex(r"a").scale(0.9).next_to(formula_3_1[0][15].get_corner(LEFT), aligned_edge=LEFT, buff = 0)))
+            self.wait()
+
+            # Fade out everything except formula_3_1. Move it to the top left
+            self.play(FadeOut(VGroup(step_1, step_2, step_3, formula_1, formula_2)))
+            self.play(formula_3_1.animate.to_corner(UL))
+            self.wait()
+
+            # add the axes and plot a formula
+            self.play(Create(axes), Write(axes.get_axis_labels()))
+            self.wait()
+            self.play(Write(axes.plot(lambda x: math.cos(x)-0.1*x**2+0.003*x**3+0.3*x+4+0.0004*x**4, color=BLUE)))
+            self.wait()
+
+            # add dashed line at x = 2
+            dashed_line = DashedLine(start=axes.coords_to_point(2,-10), end=axes.coords_to_point(2,10), color=RED)
+            self.play(Create(dashed_line))
+            self.wait()
+            self.play(Write(axes.plot(lambda x: math.cos(x+2)-0.1*(x+2)**2+0.003*(x+2)**3+0.3*(x+2)+4+0.0004*(x+2)**4, color=GOLD_C)))
+            self.wait()
+        
+        roadmap_text_and_formula()
+
 
 
 class RadiusOfConvergence(Scene):
@@ -494,11 +568,98 @@ class RadiusOfConvergence(Scene):
         """Return the values of the n-th derivative at x of a function of the form
         1/(x^2+a)"""
         derivatives = {"0": lambda x,a: 1/(x**2+a)}
-        print()
+
     def construct(self):
         axes = Axes(
+            x_range = [-2,4.5,1],
+            y_range = [-2.5,2.5,1],
+            x_length = 12,
+            y_length = 6,
+            axis_config = {"include_tip": True, "color": BLUE, "include_numbers": True},
+        ).shift(1*DOWN, 0.5*RIGHT)
+        
+        def setup_graph():
+            global log_graph, log_label
+            log_graph = axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=BLUE)
+            log_label = MathTex("f(x)=log(x)").set_color(BLUE).to_corner(UR).scale(0.8).shift(2*DOWN)
+            self.play(FadeIn(axes))
+            self.wait()
+            self.play(Write(log_graph))
+            self.play(Write(log_label))
+            self.wait()
+        
+        def calculate_derivatives():
+            text_scale = 0.85
+            gap = 0.5
+            function = MathTex("f(x)=log(x)").scale(text_scale).to_corner(UL)
+            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            third_deriv = MathTex(r"f'''(x)=\frac{1\cdot2}{x^3}").scale(text_scale).next_to(second_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot2\cdot3}{x^4}").scale(text_scale).next_to(third_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            result_arrow = Arrow(start=function.get_right(), end=function.get_right()+[2,0,0], color=RED, buff=0.1).scale(text_scale)
+            nth_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale+0.1).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(0.1*DOWN)
+            
+            self.play(Write(function))
+            self.wait()
+            self.play(Write(first_deriv))
+            self.wait()
+            self.play(Write(second_deriv))
+            self.wait()
+            self.play(Write(third_deriv))
+            self.wait()
+            self.play(Write(fourth_deriv))
+            self.wait()
 
-        )
+            ### marking stuff for understanding purposes
+
+            # marking the denominator of the derivatives
+            self.play(first_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][8].animate.set_color(WHITE), second_deriv[0][10:12].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][10:12].animate.set_color(WHITE), third_deriv[0][12:14].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][12:14].animate.set_color(WHITE), fourth_deriv[0][15:17].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][15:17].animate.set_color(WHITE))
+            self.wait()
+            self.play(Write(result_arrow))
+            self.wait()
+            self.play(Write(nth_deriv_start))
+            self.wait()
+            
+            # marking the numerator of the derivatives
+            self.play(first_deriv[0][6].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][6].animate.set_color(WHITE), second_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][8].animate.set_color(WHITE), third_deriv[0][8:11].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][8:11].animate.set_color(WHITE), fourth_deriv[0][9:14].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][9:14].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][11:14], MathTex(r"(n-1)!").scale(text_scale+0.1).next_to(nth_deriv_start[0][11:14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    Transform(nth_deriv_start[0][14], MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale+0.1).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][15:17].animate.shift((MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale+0.1).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_x()-nth_deriv_start[0][15:17].get_x())*RIGHT))
+            self.wait()
+
+            # marking the sign of the derivatives
+            self.play(second_deriv[0][7].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][7].animate.set_color(WHITE))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][8:11], MathTex(r"(-1)^{n+1}").scale(text_scale+0.1).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][11:].animate.shift((MathTex(r"(-1)^{n+1}").scale(text_scale+0.1).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_corner(RIGHT)[0]-nth_deriv_start[0][10].get_corner(RIGHT)[0])*RIGHT))
+        
+        setup_graph()
+        calculate_derivatives()
 
 class Cos_Formula_Deviation(Scene):
     def construct(self):
@@ -525,7 +686,7 @@ class TestScene(Scene):
             y_axis_config = {"numbers_to_include": [2,1,0,-1,-2],
             "decimal_number_config": {"num_decimal_places": 0}},
         )
-        g1 = axes.get_graph(lambda x: math.sin(x))
+        g1 = axes.plot(lambda x: math.sin(x))
         #stretch_matrix = [[5,0],[0,1]]
         #self.play(ApplyMatrix(stretch_matrix, g1))
         #self.play(FadeOut(g1))

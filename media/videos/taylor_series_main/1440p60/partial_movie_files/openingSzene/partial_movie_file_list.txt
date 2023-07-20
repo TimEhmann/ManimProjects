@@ -1,0 +1,12 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1183676088_2685377470_2179725984.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_2990101018_872863162.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_329969645_3409091331.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_2623255664_3773004716.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_329969645_275680413.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_2501841943_3637803036.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_329969645_1006660023.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_3643511815_2916518459.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_329969645_689897042.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_1387752139_3944440670.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/media/videos/taylor_series_main/1440p60/partial_movie_files/openingSzene/1616850000_237884074_2723997460.mp4'

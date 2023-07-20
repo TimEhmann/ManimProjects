@@ -1,0 +1,2 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/720p30/partial_movie_files/Cos_Formula_Deviation/274514146_3294940922_223132457.mp4'

@@ -1,0 +1,3 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/720p30/partial_movie_files/TestScene/274514146_1804042621_631829896.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/720p30/partial_movie_files/TestScene/274514146_1330446109_4174018169.mp4'

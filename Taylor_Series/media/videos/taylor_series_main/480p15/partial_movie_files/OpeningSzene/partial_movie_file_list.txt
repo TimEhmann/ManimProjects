@@ -1,0 +1,12 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/4266129954_2685377470_2179725984.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_2990101018_872863162.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_329969645_3409091331.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_2623255664_3773004716.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_329969645_275680413.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_2501841943_3637803036.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_329969645_1006660023.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_3643511815_2916518459.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_329969645_689897042.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_1387752139_3944440670.mp4'
+file 'file:C:/Programmier_Projekte/Privat/Projekte/ManimProjects/Taylor_Series/media/videos/taylor_series_main/480p15/partial_movie_files/OpeningSzene/1442284246_237884074_2723997460.mp4'
