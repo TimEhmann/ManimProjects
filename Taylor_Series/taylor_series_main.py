@@ -15,7 +15,6 @@ def derivative(func, x, order=1, dx = 0.01):        #Wenn nichts anderes angegeb
         ]
     return partial[0]
 
-
 def taylor_approximation(func, term_count, center_point = 0):
     """Taylor Annäherung einer Funktion mit k Termen an Entwicklungsstelle a (bis x^term_count)"""
     coefficients = [
@@ -38,6 +37,10 @@ def taylorseries_sine(x, degree):
 def taylorseries_exp(x, degree):
     """Wert von x abhängig vom Grad der Annäherung (bis x^degree)"""
     return sum(x**i/math.factorial(i) for i in range(degree + 1))
+
+def taylorseries_log(x, degree):
+    '''Wert von x abhängig vom Grad der Annäherung (bis x^degree), Annaeherung an Punkt 2'''
+    return math.log(2)+sum((-1)**(n+1)*(x-2)**n/(n*(2**n)) for n in range(1, degree+1))
 
 
 class OpeningSzene(Scene):
@@ -103,7 +106,6 @@ class OpeningSzene(Scene):
         new_term = VGroup(new_term, MathTex("?").next_to(new_term, buff = 0.3).set_color(GREEN))
         self.play(FadeIn(new_term, shift = DOWN), FadeOut(sin_label, shift = DOWN), FadeOut(redbox, shift = DOWN), FadeOut(cross_1, shift = DOWN), FadeOut(cross_2, shift = DOWN), run_time = 2)
         self.play(FadeOut(*self.mobjects))
-
 
 class CosApproximationGoal(Scene):
     """Zeigt ein Beispiel für die Approximation eines Cos durch eine Taylorreihenentwicklung"""
@@ -672,104 +674,6 @@ class full_formula(Scene):
 
         roadmap_text_and_formula()
 
-class RadiusOfConvergence(Scene):
-    def value_of_nth_derivative_at_x(a: float, x: float, n: int) ->float:
-        """Return the values of the n-th derivative at x of a function of the form
-        1/(x^2+a)"""
-        derivatives = {"0": lambda x,a: 1/(x**2+a)}
-
-    def construct(self):
-        axes = Axes(
-            x_range = [-2,4.5,1],
-            y_range = [-2.5,2.5,1],
-            x_length = 12,
-            y_length = 6,
-            axis_config = {"include_tip": True, "color": BLUE, "include_numbers": True},
-        ).shift(1*DOWN, 0.5*RIGHT)
-        
-        def setup_graph():
-            global log_graph, log_label
-            log_graph = axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=BLUE)
-            log_label = MathTex("f(x)=log(x)").set_color(BLUE).to_corner(UR).scale(0.8).shift(2*DOWN)
-            self.play(FadeIn(axes))
-            self.wait()
-            self.play(Write(log_graph))
-            self.play(Write(log_label))
-            self.wait()
-        
-        def calculate_derivatives():
-            text_scale = 0.85
-            gap = 0.5
-            function = MathTex("f(x)=log(x)").scale(text_scale).to_corner(UL)
-            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
-            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
-            third_deriv = MathTex(r"f'''(x)=\frac{1\cdot2}{x^3}").scale(text_scale).next_to(second_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
-            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot2\cdot3}{x^4}").scale(text_scale).next_to(third_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
-            result_arrow = Arrow(start=function.get_right(), end=function.get_right()+[2,0,0], color=RED, buff=0.1).scale(text_scale)
-            nth_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale+0.1).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(0.1*DOWN)
-            
-            self.play(Write(function))
-            self.wait()
-            self.play(Write(first_deriv))
-            self.wait()
-            self.play(Write(second_deriv))
-            self.wait()
-            self.play(Write(third_deriv))
-            self.wait()
-            self.play(Write(fourth_deriv))
-            self.wait()
-
-            ### marking stuff for understanding purposes
-
-            # marking the denominator of the derivatives
-            self.play(first_deriv[0][8].animate.set_color(RED))
-            self.wait()
-            self.play(first_deriv[0][8].animate.set_color(WHITE), second_deriv[0][10:12].animate.set_color(RED))
-            self.wait()
-            self.play(second_deriv[0][10:12].animate.set_color(WHITE), third_deriv[0][12:14].animate.set_color(RED))
-            self.wait()
-            self.play(third_deriv[0][12:14].animate.set_color(WHITE), fourth_deriv[0][15:17].animate.set_color(RED))
-            self.wait()
-            self.play(fourth_deriv[0][15:17].animate.set_color(WHITE))
-            self.wait()
-            self.play(Write(result_arrow))
-            self.wait()
-            self.play(Write(nth_deriv_start))
-            self.wait()
-            
-            # marking the numerator of the derivatives
-            self.play(first_deriv[0][6].animate.set_color(RED))
-            self.wait()
-            self.play(first_deriv[0][6].animate.set_color(WHITE), second_deriv[0][8].animate.set_color(RED))
-            self.wait()
-            self.play(second_deriv[0][8].animate.set_color(WHITE), third_deriv[0][8:11].animate.set_color(RED))
-            self.wait()
-            self.play(third_deriv[0][8:11].animate.set_color(WHITE), fourth_deriv[0][9:14].animate.set_color(RED))
-            self.wait()
-            self.play(fourth_deriv[0][9:14].animate.set_color(WHITE))
-            self.wait()
-
-            self.play(Transform(nth_deriv_start[0][11:14], MathTex(r"(n-1)!").scale(text_scale+0.1).next_to(nth_deriv_start[0][11:14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
-                    Transform(nth_deriv_start[0][14], MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale+0.1).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
-                    nth_deriv_start[0][15:17].animate.shift((MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale+0.1).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_x()-nth_deriv_start[0][15:17].get_x())*RIGHT))
-            self.wait()
-
-            # marking the sign of the derivatives
-            self.play(second_deriv[0][7].animate.set_color(RED))
-            self.wait()
-            self.play(second_deriv[0][7].animate.set_color(WHITE))
-            self.wait()
-            self.play(fourth_deriv[0][8].animate.set_color(RED))
-            self.wait()
-            self.play(fourth_deriv[0][8].animate.set_color(WHITE))
-            self.wait()
-
-            self.play(Transform(nth_deriv_start[0][8:11], MathTex(r"(-1)^{n+1}").scale(text_scale+0.1).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
-                    nth_deriv_start[0][11:].animate.shift((MathTex(r"(-1)^{n+1}").scale(text_scale+0.1).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_corner(RIGHT)[0]-nth_deriv_start[0][10].get_corner(RIGHT)[0])*RIGHT))
-        
-        setup_graph()
-        calculate_derivatives()
-
 class Cos_Formula_Deviation(Scene):
     def construct(self):
         # Write taylore formula
@@ -1039,6 +943,284 @@ class Cos_Formula_Deviation(Scene):
         cos_formula = MathTex(r"cos(x)=\sum_{n=0}^{\infty}\frac{(-1)^{n}}{n!}\cdot x^{2n}").scale(0.9).next_to(taylor_formula, direction=DOWN, buff = 0.5)
         self.play(Write(cos_formula))
         self.wait()
+
+class RadiusOfConvergence(Scene):
+    def value_of_nth_derivative_at_x(a: float, x: float, n: int) ->float:
+        """Return the values of the n-th derivative at x of a function of the form
+        1/(x^2+a)"""
+        derivatives = {"0": lambda x,a: 1/(x**2+a)}
+
+    def construct(self):
+        axes = Axes(
+            x_range = [-2,4.5,1],
+            y_range = [-2.5,2.5,1],
+            x_length = 12,
+            y_length = 6,
+            axis_config = {"include_tip": True, "color": BLUE, "include_numbers": True},
+        ).shift(1*DOWN, 0.5*RIGHT)
+        
+        def setup_graph():
+            global log_graph, log_label
+            log_graph = axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=GREEN_D)
+            log_label = MathTex("f(x)=log(x)").set_color(GREEN_D).to_corner(UR).scale(0.8).shift(2*DOWN)
+            self.play(FadeIn(axes))
+            self.wait()
+            self.play(Write(log_graph))
+            self.play(Write(log_label))
+            self.wait()
+        
+        def calculate_derivatives():
+            text_scale = 0.75
+            gap = 0.5
+            function = MathTex("f(x)=log(x)").scale(text_scale).to_corner(UL)
+            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            third_deriv = MathTex(r"f'''(x)=\frac{1\cdot2}{x^3}").scale(text_scale).next_to(second_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot2\cdot3}{x^4}").scale(text_scale).next_to(third_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            result_arrow = Arrow(start=function.get_right(), end=function.get_right()+[2,0,0], color=RED, buff=0.1).scale(text_scale)
+            nth_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.1, aligned_edge=LEFT).shift(0.1*DOWN)
+            
+            self.play(Write(function))
+            self.wait()
+            self.play(Write(first_deriv))
+            self.wait()
+            self.play(Write(second_deriv))
+            self.wait()
+            self.play(Write(third_deriv))
+            self.wait()
+            self.play(Write(fourth_deriv))
+            self.wait()
+
+            ### marking stuff for understanding purposes
+
+            # marking the denominator of the derivatives
+            self.play(first_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][8].animate.set_color(WHITE), second_deriv[0][10:12].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][10:12].animate.set_color(WHITE), third_deriv[0][12:14].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][12:14].animate.set_color(WHITE), fourth_deriv[0][15:17].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][15:17].animate.set_color(WHITE))
+            self.wait()
+            self.play(Write(result_arrow))
+            self.wait()
+            self.play(Write(nth_deriv_start))
+            self.wait()
+            
+            # marking the numerator of the derivatives
+            self.play(first_deriv[0][6].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][6].animate.set_color(WHITE), second_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][8].animate.set_color(WHITE), third_deriv[0][8:11].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][8:11].animate.set_color(WHITE), fourth_deriv[0][9:14].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][9:14].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][11:14], MathTex(r"(n-1)!").scale(text_scale).next_to(nth_deriv_start[0][11:14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    Transform(nth_deriv_start[0][14], MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][15:17].animate.shift((MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_x()-nth_deriv_start[0][15:17].get_x())*RIGHT))
+            self.wait()
+
+            # marking the sign of the derivatives
+            self.play(second_deriv[0][7].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][7].animate.set_color(WHITE))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][8:11], MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][11:].animate.shift((MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_corner(RIGHT)[0]-nth_deriv_start[0][10].get_corner(RIGHT)[0])*RIGHT))
+            self.wait()
+            
+            # Fade Out most stuff, move nth_deriv to the top left and then create taylor approximation formula
+            self.play(AnimationGroup(FadeOut(VGroup(function, first_deriv, second_deriv, third_deriv, fourth_deriv, result_arrow)), nth_deriv_start.animate.to_corner(UL), lag_ratio=0.5))
+            self.wait()
+            result_arrow = Arrow(start=nth_deriv_start.get_corner(RIGHT), end=nth_deriv_start.get_corner(RIGHT)+[1.8,0,0], color=RED, buff=0.1).scale(text_scale)
+            text_scale = text_scale *0.93
+            taylor_formula = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}\cdot (x-a)^{n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.15, aligned_edge=LEFT)
+            self.play(AnimationGroup(Write(result_arrow), Write(taylor_formula), lag_ratio=0.5))
+            self.wait()
+
+            # Replace the a with 1 and the x with 1 in the nth derivative formula
+            self.play(Transform(taylor_formula[0][24], MathTex(r"1").scale(text_scale).next_to(taylor_formula[0][24].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.02*UP)),
+                      Transform(taylor_formula[0][15], MathTex(r"1").scale(text_scale).next_to(taylor_formula[0][15].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.01*UP+0.01*RIGHT)))
+            self.wait()
+            self.play(Transform(nth_deriv_start[0][5], MathTex(r"1").scale(text_scale).next_to(nth_deriv_start[0][5].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(0.02*UP+0.03*RIGHT)),
+                        Transform(nth_deriv_start[0][15], MathTex(r"1").scale(text_scale).next_to(nth_deriv_start[0][15].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT))
+                      )
+            self.wait()
+            dot = MathTex(r"\cdot").scale(text_scale).next_to(nth_deriv_start[0][8].get_corner(RIGHT), direction=RIGHT, buff = 0.15)
+            self.play(FadeOut(nth_deriv_start[0][14:]), nth_deriv_start[0][9:14].animate.shift(0.275*DOWN+0.15*RIGHT), FadeIn(dot))
+            self.wait()
+
+            # draw a box around both f^(n)(1)
+            box_f = SurroundingRectangle(nth_deriv_start[0][0:7], color=RED_C, buff=0.1)
+            box_t = SurroundingRectangle(taylor_formula[0][10:17], color=RED_C, buff=0.1)
+            self.play(Create(box_f), Create(box_t))
+            self.wait()
+            self.play(Transform(box_f, SurroundingRectangle(nth_deriv_start[0][8:], color=RED_C, buff=0.1).shift(0.15*UP)))
+            self.wait()
+            self.play(FadeOut(box_t))
+            self.wait()
+            expression_to_move = VGroup(nth_deriv_start[0][8:14].copy(), MathTex(r"\cdot").scale(text_scale).next_to(nth_deriv_start[0][8].get_corner(RIGHT), direction=RIGHT, buff = 0.15))
+            self.play(AnimationGroup(AnimationGroup(
+                        Transform(taylor_formula[0][17], MathTex(r"\frac{\left(-1\right)^{n+1}\cdot\left(n-1\right)!}{1}")[0][14].scale(text_scale).next_to(taylor_formula[0][17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                        taylor_formula[0][18:20].animate.shift(0.8*RIGHT),
+                        taylor_formula[0][20:].animate.shift(1.6*RIGHT),
+                        FadeOut(taylor_formula[0][10:17])),
+                      expression_to_move.animate.move_to(MathTex(r"\left(-1\right)^{n+1}\cdot\left(n-1\right)!").scale(text_scale).next_to(taylor_formula[0][10:17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_center()+0.15*DOWN)),
+                      lag_ratio=0.5)
+            self.wait()
+            self.play(FadeOut(box_f))
+            self.wait()
+
+            # show that for n=0 the f^(n)(1) fails.
+            # draw box around n=0
+            box_n_0 = SurroundingRectangle(taylor_formula[0][7:10], color=RED_C, buff=0.1)
+            self.play(Create(box_n_0))
+            self.wait()
+            # Create expression with n=0 on the left
+            expression_n_0 = MathTex(r"f^{(0)}(1)=(-1)^{0+1}\cdot(0-1)!").scale(text_scale).next_to(nth_deriv_start.get_corner(LEFT), direction=DOWN, buff = 0.15, aligned_edge=LEFT)
+            self.play(Write(expression_n_0))
+            self.wait()
+            # Transform the expression to -1 * (-1)! and cross it out
+            self.play(Transform(expression_n_0, MathTex(r"f^{(0)}(1)=-1\cdot(-1)!").scale(text_scale).next_to(nth_deriv_start.get_corner(LEFT), direction=DOWN, buff = 0.15, aligned_edge=LEFT)))
+            self.wait()
+            cross_out_line = Line(start=expression_n_0[0][0].get_corner(LEFT)+0.1*LEFT+0.4*DOWN, end=expression_n_0[0][-1].get_corner(RIGHT)+0.4*UP+0.1*RIGHT, color=RED)
+            self.play(Create(cross_out_line))
+            self.wait()
+            self.play(FadeOut(cross_out_line), FadeOut(expression_n_0), FadeOut(box_n_0))
+            self.wait()
+
+            # fix the formula on the right
+            # add f^(0)(x)= infront and log label and draw box around the log(x)
+            f_0_x = MathTex(r"f^{(0)}(x)=").scale(0.8).next_to(log_label[0][0], direction=LEFT, buff = 0.25, aligned_edge=RIGHT)
+            self.play(Write(f_0_x))
+            self.wait()
+            box_log = SurroundingRectangle(log_label[0][5:], color=RED_C, buff=0.1)
+            self.play(Create(box_log))
+            self.wait()
+            # add log(1) + between = sign and the formula
+            addition = MathTex(r"log(1)+").scale(text_scale).next_to(taylor_formula[0][4].get_corner(RIGHT), direction=RIGHT, buff = 0.1, aligned_edge=LEFT)
+            self.play(AnimationGroup(AnimationGroup(
+                                        Transform(taylor_formula[0][9], MathTex(r"1").scale(text_scale-0.2).next_to(taylor_formula[0][9].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(1.12*RIGHT)),
+                                        taylor_formula[0][5:9].animate.shift(1.12*RIGHT), 
+                                        taylor_formula[0][17:].animate.shift(1.12*RIGHT),
+                                        expression_to_move.animate.shift(1.12*RIGHT)
+                                        ),
+                                    Write(addition)), lag_ratio=0.5)
+            self.wait()
+            # transform log(1) to 0
+            self.play(Uncreate(box_log), FadeOut(f_0_x), Transform(addition[0][:-1], MathTex(r"0").scale(text_scale).next_to(addition[0][:-1].get_corner(ORIGIN), direction=0, buff = 0, aligned_edge=ORIGIN)))
+            self.wait()
+            self.play(FadeOut(addition), taylor_formula[0][5:10].animate.shift(1.12*LEFT), taylor_formula[0][17:].animate.shift(1.12*LEFT), expression_to_move.animate.shift(1.12*LEFT))
+            self.wait()
+            # transform n! to (n-1)!*n
+            self.play(Transform(taylor_formula[0][18:20], MathTex(r"(n-1)!\cdot n").scale(text_scale).next_to(taylor_formula[0][18].get_corner(ORIGIN), direction=0, buff = 0, aligned_edge=ORIGIN)))
+            self.wait()
+            # cross out (n-1)!
+            cross_out_line1 = Line(start=taylor_formula[0][18].get_corner(LEFT)+0.1*LEFT+0.2*DOWN, end=taylor_formula[0][18].get_corner(RIGHT)+0.2*UP+0.3*LEFT, color=RED)
+            cross_out_line2 = Line(start=expression_to_move[0][3].get_corner(LEFT)+0.1*LEFT+0.2*DOWN, end=expression_to_move[0][3].get_corner(RIGHT)+0.2*UP+0.1*RIGHT, color=RED)
+            self.play(Create(cross_out_line1), Create(cross_out_line2))
+            self.wait()
+            self.play(FadeOut(cross_out_line1), FadeOut(cross_out_line2), FadeOut(taylor_formula[0][18][:-1]), FadeOut(expression_to_move[0][3]), FadeOut(expression_to_move[1]), 
+                      taylor_formula[0][18][-1].animate.shift(1.4*LEFT),
+                      Transform(taylor_formula[0][17], MathTex(r"\frac{\left(-1\right)^{n+1}}{1}")[0][7].scale(text_scale).next_to(taylor_formula[0][17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                      taylor_formula[0][19:].animate.shift(1.4*LEFT))
+
+
+            # Start the approximation with n terms
+            for i in range(11):
+                func = taylor_approximation(math.log, i, 1)
+                # graph the function
+                if i == 0:
+                    graph = axes.plot(func, x_range=[0.01, 4.5, 0.01], color=ORANGE)
+                    self.play(Write(graph), Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)))
+                else:
+                    self.play(Transform(graph, axes.plot(func, x_range=[0.01, 4.5, 0.01], color=ORANGE)), Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)))
+                self.wait()
+            
+            # run a point along the originial log_graph from x=0 to x=2
+            point = Dot(axes.coords_to_point(0.01, -1000), color=LIGHT_PINK)
+            self.play(Create(point))
+            self.wait()
+            self.play(MoveAlongPath(point, axes.plot(lambda x: math.log(x), x_range=[0.1,2,0.1]), rate_func=linear))
+            self.wait()
+
+            # add a Brace from x=0 to x=2 to show the Interval of Convergence has size 2
+            brace = BraceBetweenPoints(axes.coords_to_point(0,0), axes.coords_to_point(2,0), direction=UP, color=RED)
+            text = brace.get_text("Interval of Convergence = (0,2)").scale(0.5).shift(0.2*DOWN).add_background_rectangle()
+            self.play(GrowFromCenter(brace), Write(text))
+            self.wait()
+
+            # add vertical line at x=1 and at x=2 to show the Radius of Convergence
+            line_1 = axes.get_vertical_line(axes.coords_to_point(1,0), color=RED)
+            line_2 = axes.get_vertical_line(axes.coords_to_point(2,0), color=RED)
+            self.play(Create(line_1), Create(line_2))
+            self.wait()
+
+            # add a brace to show the Radius of Convergence
+            brace_2 = BraceBetweenPoints(axes.coords_to_point(1,0), axes.coords_to_point(2,0), direction=DOWN, color=RED_D)
+            text_2 = brace_2.get_text("Radius of Convergence = 1").scale(0.5)
+            self.play(GrowFromCenter(brace_2), Write(text_2))
+            self.wait()
+            
+            # Fade out everything except the graph and the axes
+            self.play(FadeOut(taylor_formula[0][:10]), FadeOut(taylor_formula[0][17]), FadeOut(taylor_formula[0][18][-1]), FadeOut(taylor_formula[0][19:]),
+                      FadeOut(point), FadeOut(graph), FadeOut(brace), FadeOut(text), FadeOut(brace_2), FadeOut(text_2), FadeOut(dot), FadeOut(line_1),
+                      FadeOut(line_2), FadeOut(brace), FadeOut(text), FadeOut(nth_deriv_start[0][:-3]), FadeOut(result_arrow), FadeOut(expression_to_move[0][:3]))
+            self.wait()
+
+            # rewrite original taylor formula 
+            taylor_formula = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}\cdot (x-a)^{n}").scale(text_scale).to_corner(UR)
+            self.play(Write(taylor_formula))
+            
+            # add Dot at (2,log(2)) and transform a to 2
+            dot_2 = Dot(axes.coords_to_point(2, math.log(2)), color=LIGHT_PINK)
+            self.play(Create(dot_2), 
+                      Transform(taylor_formula[0][24], MathTex(r"2").set_color(LIGHT_PINK).scale(text_scale).next_to(taylor_formula[0][24].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.02*UP)),
+                      Transform(taylor_formula[0][15], MathTex(r"2").set_color(LIGHT_PINK).scale(text_scale).next_to(taylor_formula[0][15].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.01*UP+0.01*RIGHT)))
+            self.wait()
+
+            # Start the approximation with n terms
+            for i in range(21):
+                # graph the function
+                if i == 0:
+                    graph = axes.plot(lambda x: taylorseries_log(x, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)
+                    #Transform infinity to 0, color T(x) orange
+                    self.play(Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)),
+                              taylor_formula[0][:4].animate.set_color(ORANGE))
+                    self.wait()
+                    self.play(Write(graph))
+                else:
+                    self.play(Transform(graph, axes.plot(lambda x: taylorseries_log(x, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)),
+                              Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)))
+                self.wait()
+
+            # show interval and radius again. This time its (0,4) and the radius is 2
+            brace = BraceBetweenPoints(axes.coords_to_point(0,0), axes.coords_to_point(4,0), direction=UP, color=RED)
+            text = brace.get_text("Convergence Interval = (0,4)").scale(0.5).shift(0.2*DOWN).add_background_rectangle()
+            self.play(GrowFromCenter(brace), Write(text))
+            self.wait()
+            brace_2 = BraceBetweenPoints(axes.coords_to_point(2,0), axes.coords_to_point(4,0), direction=DOWN, color=RED_D)
+            text_2 = brace_2.get_text("Radius of Convergence = 2").scale(0.5)
+            self.play(GrowFromCenter(brace_2), Write(text_2))
+            self.wait()
+
+
+        
+
+            
+        setup_graph()
+        calculate_derivatives()
 
 class TestScene(Scene):
     def construct(self):
