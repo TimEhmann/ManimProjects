@@ -130,22 +130,26 @@ class CosApproximationGoal(Scene):
             plot = VGroup(plot, label)
         self.play(FadeIn(plot))
     
-        approximation_term_parts = [MathTex("f(x) = ").set_color(GREEN).to_corner(UL), MathTex("1"), MathTex(r"-\frac{x^{2}}{2}"),
+        approximation_term_parts = VGroup(MathTex("f(x) = ").set_color(GREEN).to_corner(UL), MathTex("1"), MathTex(r"-\frac{x^{2}}{2}"),
             MathTex(r"+\frac{x^{4}}{24}"), MathTex(r"-\frac{x^{6}}{720}"), MathTex(r"+\frac{x^{8}}{40320}"), MathTex(r"-\frac{x^{10}}{3628800}"),
-            MathTex(r"+\frac{x^{12}}{479001600}"), MathTex(r"\cdots")]
+            MathTex(r"+\frac{x^{12}}{479001600}"), MathTex(r"\cdots"))
+        bgra = BackgroundRectangle(approximation_term_parts[0])
+        self.play(Create(bgra))
         def show_cosine_approximation_n_to_m(start_degree, finish_degree):
             self.play(Write(approximation_term_parts[0]))
             for i in range(start_degree, finish_degree+1):
                 if i == start_degree:
                     cos_appr = axes.plot(lambda x: taylorseries_cosine(x, i), color = GREEN)
                     approximation_term_parts[i+1].scale(0.8).next_to(approximation_term_parts[i]).set_color(GREEN)
-                    self.play(Create(cos_appr), Write(approximation_term_parts[i+1]))
+                    bgra2 = BackgroundRectangle(approximation_term_parts[:i+2])
+                    self.play(Transform(bgra, bgra2), Create(cos_appr), Write(approximation_term_parts[i+1]))
                     self.wait()
                 else:
                     next_iteration = axes.plot(lambda x: taylorseries_cosine(x, i), color = GREEN)
                     if i < len(approximation_term_parts)-1:
                         approximation_term_parts[i+1].scale(0.8).next_to(approximation_term_parts[i]).set_color(GREEN)
-                        self.play(Transform(cos_appr, next_iteration), Write(approximation_term_parts[i+1]))
+                        bgra2 = BackgroundRectangle(approximation_term_parts[:i+2], buff=0.1)
+                        self.play(Transform(bgra, bgra2), Transform(cos_appr, next_iteration), Write(approximation_term_parts[i+1]))
                     else:
                         self.play(Transform(cos_appr, next_iteration))
                     self.wait()
@@ -1221,6 +1225,174 @@ class RadiusOfConvergence(Scene):
             
         setup_graph()
         calculate_derivatives()
+
+class Origin_Radius(ThreeDScene):
+    '''
+    def construct(self):
+        # Setup 3D axes
+        axes = ThreeDAxes(
+            x_range=[-2, 2, 1],
+            y_range=[-2, 2, 1],
+            z_range=[0, 1, 0.2],
+            x_length=7,
+            y_length=7,
+            z_length=5
+        )
+
+        # Function for plotting 2D graph along the xz-plane
+        def func_2d(x):
+            return 1 / (x**2 + 1)
+
+        # Convert 2D function to 3D by ignoring y-component
+        graph_2d = axes.plot_line_graph(
+            x_values=np.linspace(-2, 2, 100),
+            y_values=[func_2d(x) for x in np.linspace(-2, 2, 100)],
+            line_color=GREEN,
+            add_vertex_dots=False,
+        )
+
+        # Define the 3D function for complex input z
+        def func_3d(x, y):
+            z = complex(x, y)
+            # Assuming we want to visualize the function for all z
+            return np.real(1 / (z**2 + 1))
+
+        # Create the 3D surface plot
+        surface = Surface(
+            lambda u, v: axes.c2p(u, v, func_3d(u, v)),
+            u_range=[-2, 2],
+            v_range=[-2, 2],
+            resolution=(30, 30),
+            fill_opacity=0.5,  # Semi-transparent
+            stroke_opacity=0.5,
+        )
+
+        # Start with the camera positioned to show only the xz-plane
+        self.set_camera_orientation(phi=0 * DEGREES, theta=-90 * DEGREES)
+        self.add(axes, graph_2d)
+
+        ## Move the camera to reveal the 3D nature and the y-axis
+        self.move_camera(phi=70 * DEGREES, theta=-45 * DEGREES)
+        self.wait()
+
+        # Transition from 2D graph to 3D surface
+        self.play(Transform(graph_2d, surface), run_time=3)
+        self.wait(3)
+
+    '''
+    def construct(self):
+        axes = ThreeDAxes(
+            x_range=[-2, 2, 0.5],
+            y_range=[-2, 2, 0.5],
+            z_range=[-2, 2, 0.5],
+            x_length=7,
+            y_length=7,
+            z_length=5
+        )
+        x_label = axes.get_x_axis_label("y").set_color(WHITE)
+        y_label = axes.get_y_axis_label("x").set_color(WHITE)
+        z_label = MathTex(r"\Re\{f(x,z)\}").next_to(axes.z_axis.get_end()).set_color(WHITE)
+
+        def func_r(x):
+            '''returns z-axis value for x-axis input'''
+            result = 1/(x**2 + 1)
+            return result
+        
+        # Define the function to plot
+        # This function takes two real arguments, x and y, and returns the real part of 1 / (z^2 + 1)
+        def func(x, z):
+            '''returns the real part of 1 / (z^2 + 1) on y axis for complex input y = x + iz'''
+            y = complex(x, z)
+            result = 1 / (y**2 + 1)
+            return np.real(result) if np.real(result) < 3 else None
+        
+        # plot grapg_r with x input on the z axis as output, not the y axis
+        graph_r = ParametricFunction(
+                    lambda t: axes.c2p(0, t, func_r(t)), # Convert to 3D points
+                    t_range=[-2, 2],
+                    color=BLUE
+                )
+
+        # Create a parametric function plot of the function
+        # This surface uses the input from the x and z axis to the y axis
+        """ graph = ParametricFunction(
+            lambda u, v: axes.c2p(v, u, func(u, v)), # Convert to 3D points
+            u_range=[-2, 2],
+            v_range=[-2, 2],
+            color=BLUE
+        ) """
+
+        graph = Surface(
+            lambda u, v: axes.c2p(v, u, func(u, v)),
+            u_range=[-2, 2],
+            v_range=[-2, 2],
+            resolution=(50, 50),
+            fill_opacity=0.5,
+        )
+
+        annotations = [
+            Text("i", font_size=24).move_to(axes.c2p(1, 0, 0)).add_background_rectangle(),
+            Text("-i", font_size=24).move_to(axes.c2p(-1, 0, 0)).add_background_rectangle(),
+            Text("1", font_size=24).move_to(axes.c2p(0, 1, 0.1)).add_background_rectangle(),
+            Text("-1", font_size=24).move_to(axes.c2p(0, -1, 0.1)).add_background_rectangle(),
+            Text("1", font_size=24).move_to(axes.c2p(-0.1, 0, 1)).add_background_rectangle(),
+            Text("-1", font_size=24).move_to(axes.c2p(-0.1, 0, -1)).add_background_rectangle()
+        ]
+
+        # Styling the graph
+        graph.set_style(stroke_width=1, stroke_color=WHITE)
+        graph.set_fill_by_value(axes=axes, colors=[(BLUE_E, -0.5), (GREEN_E, 0.5), (YELLOW_E, 1.5)])
+
+        # Adding axes and graph to the scene
+        self.set_camera_orientation(phi=90 * DEGREES, theta=0 * DEGREES)
+        self.play(Create(axes), Create(x_label), Create(y_label), Create(z_label), AnimationGroup(*[Create(annotation) for annotation in annotations[2:]]))
+        self.wait()
+        self.play(Create(graph_r))
+        self.wait()
+        self.move_camera(phi=60 * DEGREES, theta=45 * DEGREES)
+        self.wait()
+        self.play(AnimationGroup(*[Create(annotation) for annotation in annotations[:2]]))
+        self.wait()
+        self.play(Create(graph))
+        self.wait()
+        def begin_camera_roation_around_y_2(self, rate: float = 0.02):
+            """
+            This method begins an ambient rotation of the camera about the Y_AXIS,
+            in the anticlockwise direction
+
+            Parameters
+            ----------
+            rate
+                The rate at which the camera should rotate about the Y_AXIS.
+                Negative rate means clockwise rotation.
+            """
+            # alpha_0 is arctan(tan(phi)/tan(theta))
+            alpha_0 = np.arctan(np.tan(self.camera.phi_tracker.get_value())/np.tan(self.camera.theta_tracker.get_value()))
+            # increase alpha_0 by rate and calculate new phi and theta
+            def update_alpha(dt, alpha):
+                # get x,y,z coordinates of camera
+                x, y, z = self.camera.get_position()
+                distance = np.sqrt(x**2 + y**2 + z**2)
+                x_1_new = distance * np.sin(alpha + rate * dt)
+                # y stays constant because we rotate around y
+                z_1_new = distance * np.cos(alpha + rate * dt)
+                # calculate new phi and theta
+                theta_new = np.arccos(z_1_new/distance)
+                # phi_new = sgn(x_1_new)*arccos(x_1_new/(x_1_new**2 + y**2))
+                phi_new = np.sign(x_1_new)*np.arccos(x_1_new/(x_1_new**2 + y**2))
+                # set new phi and theta
+                self.camera.theta_tracker.set_value(theta_new)
+                self.camera.phi_tracker.set_value(phi_new)
+                # update camera position
+                self.camera.set_position([x_1_new, y, z_1_new])
+            vt = ValueTracker(alpha_0)
+            self.camera.add_updater(lambda dt: update_alpha(dt, vt.get_value()))
+            self.play(vt.animate.set_value(alpha_0 + np.pi))
+        # Move the camere 360 degrees around the z axis
+        #self.begin_ambient_camera_rotation(rate=0.5)
+        #self.wait(15)
+        #self.stop_ambient_camera_rotation()
+    
 
 class TestScene(Scene):
     def construct(self):
