@@ -37,7 +37,7 @@ def taylor_approx_at_a(f, x, a, n_terms):
     return val
 
 X_SYM = sympy.symbols('x')
-COS = math.cos(X_SYM)
+COS = sympy.cos(X_SYM)
 
 class CosApproximationTut(ZoomedScene):
     """Erklärt die Berechnung der Approximation eines Cos durch eine
@@ -336,7 +336,7 @@ class CosApproximationTut(ZoomedScene):
         def show_more_terms():
             self.wait()
             function_term = VGroup(approximation, third_term_coeff[0][3:],approximation_side_calc_4[0][5])
-            function_term.shift(3*LEFT)
+            self.play(function_term.animate.shift(3*LEFT))
 
             new_term = MathTex(r'+\frac{x^4}{24}').scale(0.8).set_color(apprx_color).next_to(approximation_side_calc_4[0][5], direction=RIGHT, buff = 0.6)
             function_term.add(new_term)

@@ -37,7 +37,7 @@ def taylor_approx_at_a(f, x, a, n_terms):
     return val
 
 X_SYM = sympy.symbols('x')
-COS = math.cos(X_SYM)
+COS = sympy.cos(X_SYM)
 
 
 class ComplexRadiusOfConvergence_v2(ThreeDScene): # Use ThreeDScene

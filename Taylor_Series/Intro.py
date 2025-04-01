@@ -37,8 +37,8 @@ def taylor_approx_at_a(f, x, a, n_terms):
     return val
 
 X_SYM = sympy.symbols('x')
-COS = math.cos(X_SYM)
-SIN = math.sin(X_SYM)
+COS = sympy.cos(X_SYM)
+SIN = sympy.sin(X_SYM)
 
 # FINISHED
 class OpeningSzene(Scene):
