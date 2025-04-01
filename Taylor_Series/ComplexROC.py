@@ -20,20 +20,22 @@ def taylor_approx_at_a(f, x, a, n_terms):
         func = lambda x: taylor_approx_at_a(f_expr, x, 1, i)
     
     """
-    val = 0.0
-    a = float(a) # Ensure 'a' is a float
-    x = float(x) # Ensure 'x' is a float
+    x_sym = sympy.symbols('x')
+    a_sym = sympy.sympify(a)  # Keep 'a' symbolic
+    x_sym = sympy.sympify(x)  # Keep 'x' symbolic
+
+    val = 0
     for n in range(n_terms + 1):
-        deriv_at_a = f_deriv(f, a, n)
-        term = deriv_at_a / math.factorial(n) * (x - a)**n
-        # Cap term magnitude to avoid excessive spikes when diverging
-        if abs(term) > 100: # Adjust cap as needed
-            term = np.sign(term) * 100
+        deriv_at_a = f_deriv(f, a_sym, n)  # Use symbolic derivative
+        term = deriv_at_a / sympy.factorial(n) * (x_sym - a_sym)**n
         val += term
-            
+
+    # Convert to float only at the end for numerical stability
+    val = float(val)
+
     # Cap the output value
-    if abs(val) > 5: # Limit based on axes range
-        return np.sign(val) * 5
+    if abs(val) > 5:  # Limit based on axes range
+        return math.copysign(5, val)
     return val
 
 X_SYM = sympy.symbols('x')
