@@ -1,5 +1,3 @@
-"""Manim-Animiertes Video für die Taylorreihe einer Funktion"""
-
 import math
 #import functools
 from manim import *
@@ -94,6 +92,33 @@ def maclaurin_approx_1_over_1px2(x, n_terms):
     if abs(val) > 5: # Limit based on typical axes range
          return np.sign(val) * 5
     # Return NaN outside [-1, 1] to visually show divergence sharply? No, let plot range handle it.
+    return val
+
+# --- Helper Function for Taylor Approximation ---
+def f_deriv(f, x_val, n):
+    x = sympy.symbols('x')
+    f_n = f
+    for _ in range(n):
+        f_n = sympy.diff(f_n, x)
+    return float(f_n.subs(x, x_val))
+
+# --- Modify taylor_approx_at_a ---
+def taylor_approx_at_a(f, x, a, n_terms):
+    """Calculates the Taylor expansion of 1/(1+x^2) around 'a' up to n_terms."""
+    val = 0.0
+    a = float(a) # Ensure 'a' is a float
+    x = float(x) # Ensure 'x' is a float
+    for n in range(n_terms + 1):
+        deriv_at_a = f_deriv(f, a, n)
+        term = deriv_at_a / math.factorial(n) * (x - a)**n
+        # Cap term magnitude to avoid excessive spikes when diverging
+        if abs(term) > 100: # Adjust cap as needed
+            term = np.sign(term) * 100
+        val += term
+            
+    # Cap the output value
+    if abs(val) > 5: # Limit based on axes range
+        return np.sign(val) * 5
     return val
 
 # FINISHED
@@ -1204,8 +1229,11 @@ class RadiusOfConvergence(Scene):
 
 
             # Start the approximation with n terms
+            x_sym = sympy.symbols('x')
+            f_expr = math.log(x_sym)
             for i in range(11):
-                func = taylor_approximation(math.log, i, 1)
+                #func = taylor_approximation(math.log, i, 1)
+                func = lambda x: taylor_approx_at_a(f_expr, x, 1, i)
                 # graph the function
                 if i == 0:
                     graph = axes.plot(func, x_range=[0.01, 4.5, 0.01], color=ORANGE)
@@ -1260,7 +1288,7 @@ class RadiusOfConvergence(Scene):
             for i in range(21):
                 # graph the function
                 if i == 0:
-                    graph = axes.plot(lambda x: taylorseries_log(x, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)
+                    graph = axes.plot(lambda x: taylor_approx_at_a(f_expr, x, 1, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)
                     #Transform infinity to 0, color T(x) orange
                     self.play(Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)),
                               taylor_formula[0][:4].animate.set_color(ORANGE))
@@ -1282,12 +1310,8 @@ class RadiusOfConvergence(Scene):
             self.wait()
 
             # Store elements to fade later if needed
-            self.convergence_elements = VGroup(interval_brace, interval_text, radius_brace, radius_text, term_counter)
-
-
+            #self.convergence_elements = VGroup(interval_brace, interval_text, radius_brace, radius_text, term_counter)
         
-
-            
         setup_graph()
         calculate_derivatives()
 
@@ -1299,389 +1323,569 @@ class RadiusOfConvergence_v2(Scene):
 
     def construct(self):
         axes = Axes(
-            x_range = [-2, 4.5, 1],
-            y_range = [-2.5, 2.5, 1],
+            x_range = [-2,4.5,1],
+            y_range = [-2.5,2.5,1],
             x_length = 12,
             y_length = 6,
             axis_config = {"include_tip": True, "color": BLUE, "include_numbers": True},
-        ).shift(1*DOWN + 0.5*RIGHT) # Adjusted shift slightly
-
-        # --- Storing graph and label as instance variables ---
-        self.log_graph = VMobject()
-        self.log_label = VMobject()
-        self.axes = axes
-        self.approx_graph = VMobject() # To hold the current approximation graph
-        self.taylor_formula_display = VMobject() # To hold the taylor formula text
-        self.dot_a = VMobject() # To hold the dot at center 'a'
-
-
+        ).shift(1*DOWN, 0.5*RIGHT)
+        
         def setup_graph():
-            # Use self. variables
-            self.log_graph = self.axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=GREEN_D)
-            self.log_label = MathTex("f(x)=\ln(x)").set_color(GREEN_D).to_corner(UR).scale(0.8).shift(2*DOWN) # Use ln instead of log
-            self.play(FadeIn(self.axes))
+            global log_graph, log_label
+            log_graph = axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=GREEN_D)
+            log_label = MathTex("f(x)=log(x)").set_color(GREEN_D).to_corner(UR).scale(0.8).shift(2*DOWN)
+            self.play(FadeIn(axes))
             self.wait()
-            self.play(Create(self.log_graph)) # Use Create for graphs
-            self.play(Write(self.log_label))
+            self.play(Write(log_graph))
+            self.play(Write(log_label))
             self.wait()
-
-        # --- calculate_derivatives function (modified slightly for clarity/flow) ---
-        def calculate_derivatives(center_a=1):
-            # Ensure previous approximation is faded out if recalculating
-            self.play(FadeOut(self.approx_graph, self.taylor_formula_display, self.dot_a))
-
-            text_scale = 0.7
-            gap = 0.4
-            deriv_group = VGroup() # Group to hold derivatives
-
-            function = MathTex(r"f(x)=\ln(x)").scale(text_scale).to_corner(UL)
-            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function, DOWN, aligned_edge=LEFT, buff = gap)
-            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv, DOWN, aligned_edge=LEFT, buff = gap)
-            third_deriv = MathTex(r"f'''(x)=\frac{2}{x^3}").scale(text_scale).next_to(second_deriv, DOWN, aligned_edge=LEFT, buff = gap) # Simplified 1*2
-            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{6}{x^4}").scale(text_scale).next_to(third_deriv, DOWN, aligned_edge=LEFT, buff = gap) # Simplified 1*2*3
+        
+        def calculate_derivatives():
+            text_scale = 0.75
+            gap = 0.5
+            function = MathTex("f(x)=log(x)").scale(text_scale).to_corner(UL)
+            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            third_deriv = MathTex(r"f'''(x)=\frac{1\cdot2}{x^3}").scale(text_scale).next_to(second_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot2\cdot3}{x^4}").scale(text_scale).next_to(third_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            result_arrow = Arrow(start=function.get_right(), end=function.get_right()+[2,0,0], color=RED, buff=0.1).scale(text_scale)
+            nth_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.1, aligned_edge=LEFT).shift(0.1*DOWN)
             
-            deriv_group.add(function, first_deriv, second_deriv, third_deriv, fourth_deriv)
-
-            nth_deriv_final = MathTex(r"f^{(n)}(x)=(-1)^{n+1}\frac{(n-1)!}{x^n}", tex_template=TexTemplateLibrary.ctex).scale(text_scale) # Using ctex for better rendering maybe
-            #nth_deriv_final_eval = MathTex(r"f^{(n)}(", str(center_a), r")=(-1)^{n+1}\frac{(n-1)!}{", str(center_a), r"^n}").scale(text_scale)
-            eval_tex_string = rf"f^{{(n)}}({center_a})=(-1)^{{n+1}}\frac{{(n-1)!}}{{{center_a}^n}}"
-            nth_deriv_final_eval = MathTex(eval_tex_string, tex_template=TexTemplateLibrary.ctex).scale(text_scale) # Keep ctex template if needed
-
-            # Use a temporary simplified version for the build-up animation
-            nth_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale).next_to(fourth_deriv, DOWN, aligned_edge=LEFT, buff=gap*1.5)
-
             self.play(Write(function))
-            self.wait(0.5)
+            self.wait()
             self.play(Write(first_deriv))
-            self.wait(0.5)
+            self.wait()
             self.play(Write(second_deriv))
-            self.wait(0.5)
+            self.wait()
             self.play(Write(third_deriv))
-            self.wait(0.5)
+            self.wait()
             self.play(Write(fourth_deriv))
             self.wait()
 
-            # Highlighting parts - Condensed this part for brevity
-            # Denominator
-            highlights_denom = [first_deriv[0][7], second_deriv[0][9:11], third_deriv[0][9:11], fourth_deriv[0][11:13]]
-            for i in range(len(highlights_denom)):
-                self.play(highlights_denom[i].animate.set_color(RED), run_time=0.5)
+            ### marking stuff for understanding purposes
+
+            # marking the denominator of the derivatives
+            self.play(first_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][8].animate.set_color(WHITE), second_deriv[0][10:12].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][10:12].animate.set_color(WHITE), third_deriv[0][12:14].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][12:14].animate.set_color(WHITE), fourth_deriv[0][15:17].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][15:17].animate.set_color(WHITE))
+            self.wait()
+            self.play(Write(result_arrow))
+            self.wait()
+            self.play(Write(nth_deriv_start))
+            self.wait()
+            
+            # marking the numerator of the derivatives
+            self.play(first_deriv[0][6].animate.set_color(RED))
+            self.wait()
+            self.play(first_deriv[0][6].animate.set_color(WHITE), second_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][8].animate.set_color(WHITE), third_deriv[0][8:11].animate.set_color(RED))
+            self.wait()
+            self.play(third_deriv[0][8:11].animate.set_color(WHITE), fourth_deriv[0][9:14].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][9:14].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][11:14], MathTex(r"(n-1)!").scale(text_scale).next_to(nth_deriv_start[0][11:14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    Transform(nth_deriv_start[0][14], MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][15:17].animate.shift((MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(nth_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_x()-nth_deriv_start[0][15:17].get_x())*RIGHT))
+            self.wait()
+
+            # marking the sign of the derivatives
+            self.play(second_deriv[0][7].animate.set_color(RED))
+            self.wait()
+            self.play(second_deriv[0][7].animate.set_color(WHITE))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(RED))
+            self.wait()
+            self.play(fourth_deriv[0][8].animate.set_color(WHITE))
+            self.wait()
+
+            self.play(Transform(nth_deriv_start[0][8:11], MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    nth_deriv_start[0][11:].animate.shift((MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(nth_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_corner(RIGHT)[0]-nth_deriv_start[0][10].get_corner(RIGHT)[0])*RIGHT))
+            self.wait()
+            
+            # Fade Out most stuff, move nth_deriv to the top left and then create taylor approximation formula
+            self.play(AnimationGroup(FadeOut(VGroup(function, first_deriv, second_deriv, third_deriv, fourth_deriv, result_arrow)), nth_deriv_start.animate.to_corner(UL), lag_ratio=0.5))
+            self.wait()
+            result_arrow = Arrow(start=nth_deriv_start.get_corner(RIGHT), end=nth_deriv_start.get_corner(RIGHT)+[1.8,0,0], color=RED, buff=0.1).scale(text_scale)
+            text_scale = text_scale *0.93
+            taylor_formula = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}\cdot (x-a)^{n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.15, aligned_edge=LEFT)
+            self.play(AnimationGroup(Write(result_arrow), Write(taylor_formula), lag_ratio=0.5))
+            self.wait()
+
+            # Replace the a with 1 and the x with 1 in the nth derivative formula
+            self.play(Transform(taylor_formula[0][24], MathTex(r"1").scale(text_scale).next_to(taylor_formula[0][24].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.02*UP)),
+                      Transform(taylor_formula[0][15], MathTex(r"1").scale(text_scale).next_to(taylor_formula[0][15].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.01*UP+0.01*RIGHT)))
+            self.wait()
+            self.play(Transform(nth_deriv_start[0][5], MathTex(r"1").scale(text_scale).next_to(nth_deriv_start[0][5].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(0.02*UP+0.03*RIGHT)),
+                        Transform(nth_deriv_start[0][15], MathTex(r"1").scale(text_scale).next_to(nth_deriv_start[0][15].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT))
+                      )
+            self.wait()
+            dot = MathTex(r"\cdot").scale(text_scale).next_to(nth_deriv_start[0][8].get_corner(RIGHT), direction=RIGHT, buff = 0.15)
+            self.play(FadeOut(nth_deriv_start[0][14:]), nth_deriv_start[0][9:14].animate.shift(0.275*DOWN+0.15*RIGHT), FadeIn(dot))
+            self.wait()
+
+            # draw a box around both f^(n)(1)
+            box_f = SurroundingRectangle(nth_deriv_start[0][0:7], color=RED_C, buff=0.1)
+            box_t = SurroundingRectangle(taylor_formula[0][10:17], color=RED_C, buff=0.1)
+            self.play(Create(box_f), Create(box_t))
+            self.wait()
+            self.play(Transform(box_f, SurroundingRectangle(nth_deriv_start[0][8:], color=RED_C, buff=0.1).shift(0.15*UP)))
+            self.wait()
+            self.play(FadeOut(box_t))
+            self.wait()
+            expression_to_move = VGroup(nth_deriv_start[0][8:14].copy(), MathTex(r"\cdot").scale(text_scale).next_to(nth_deriv_start[0][8].get_corner(RIGHT), direction=RIGHT, buff = 0.15))
+            self.play(AnimationGroup(AnimationGroup(
+                        Transform(taylor_formula[0][17], MathTex(r"\frac{\left(-1\right)^{n+1}\cdot\left(n-1\right)!}{1}")[0][14].scale(text_scale).next_to(taylor_formula[0][17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                        taylor_formula[0][18:20].animate.shift(0.8*RIGHT),
+                        taylor_formula[0][20:].animate.shift(1.6*RIGHT),
+                        FadeOut(taylor_formula[0][10:17])),
+                      expression_to_move.animate.move_to(MathTex(r"\left(-1\right)^{n+1}\cdot\left(n-1\right)!").scale(text_scale).next_to(taylor_formula[0][10:17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_center()+0.15*DOWN)),
+                      lag_ratio=0.5)
+            self.wait()
+            self.play(FadeOut(box_f))
+            self.wait()
+
+            # show that for n=0 the f^(n)(1) fails.
+            # draw box around n=0
+            box_n_0 = SurroundingRectangle(taylor_formula[0][7:10], color=RED_C, buff=0.1)
+            self.play(Create(box_n_0))
+            self.wait()
+            # Create expression with n=0 on the left
+            expression_n_0 = MathTex(r"f^{(0)}(1)=(-1)^{0+1}\cdot(0-1)!").scale(text_scale).next_to(nth_deriv_start.get_corner(LEFT), direction=DOWN, buff = 0.15, aligned_edge=LEFT)
+            self.play(Write(expression_n_0))
+            self.wait()
+            # Transform the expression to -1 * (-1)! and cross it out
+            self.play(Transform(expression_n_0, MathTex(r"f^{(0)}(1)=-1\cdot(-1)!").scale(text_scale).next_to(nth_deriv_start.get_corner(LEFT), direction=DOWN, buff = 0.15, aligned_edge=LEFT)))
+            self.wait()
+            cross_out_line = Line(start=expression_n_0[0][0].get_corner(LEFT)+0.1*LEFT+0.4*DOWN, end=expression_n_0[0][-1].get_corner(RIGHT)+0.4*UP+0.1*RIGHT, color=RED)
+            self.play(Create(cross_out_line))
+            self.wait()
+            self.play(FadeOut(cross_out_line), FadeOut(expression_n_0), FadeOut(box_n_0))
+            self.wait()
+
+            # fix the formula on the right
+            # add f^(0)(x)= infront and log label and draw box around the log(x)
+            f_0_x = MathTex(r"f^{(0)}(x)=").scale(0.8).next_to(log_label[0][0], direction=LEFT, buff = 0.25, aligned_edge=RIGHT)
+            self.play(Write(f_0_x))
+            self.wait()
+            box_log = SurroundingRectangle(log_label[0][5:], color=RED_C, buff=0.1)
+            self.play(Create(box_log))
+            self.wait()
+            # add log(1) + between = sign and the formula
+            addition = MathTex(r"log(1)+").scale(text_scale).next_to(taylor_formula[0][4].get_corner(RIGHT), direction=RIGHT, buff = 0.1, aligned_edge=LEFT)
+            self.play(AnimationGroup(AnimationGroup(
+                                        Transform(taylor_formula[0][9], MathTex(r"1").scale(text_scale-0.2).next_to(taylor_formula[0][9].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).shift(1.12*RIGHT)),
+                                        taylor_formula[0][5:9].animate.shift(1.12*RIGHT), 
+                                        taylor_formula[0][17:].animate.shift(1.12*RIGHT),
+                                        expression_to_move.animate.shift(1.12*RIGHT)
+                                        ),
+                                    Write(addition)), lag_ratio=0.5)
+            self.wait()
+            # transform log(1) to 0
+            self.play(Uncreate(box_log), FadeOut(f_0_x), Transform(addition[0][:-1], MathTex(r"0").scale(text_scale).next_to(addition[0][:-1].get_corner(ORIGIN), direction=0, buff = 0, aligned_edge=ORIGIN)))
+            self.wait()
+            self.play(FadeOut(addition), taylor_formula[0][5:10].animate.shift(1.12*LEFT), taylor_formula[0][17:].animate.shift(1.12*LEFT), expression_to_move.animate.shift(1.12*LEFT))
+            self.wait()
+            # transform n! to (n-1)!*n
+            self.play(Transform(taylor_formula[0][18:20], MathTex(r"(n-1)!\cdot n").scale(text_scale).next_to(taylor_formula[0][18].get_corner(ORIGIN), direction=0, buff = 0, aligned_edge=ORIGIN)))
+            self.wait()
+            # cross out (n-1)!
+            cross_out_line1 = Line(start=taylor_formula[0][18].get_corner(LEFT)+0.1*LEFT+0.2*DOWN, end=taylor_formula[0][18].get_corner(RIGHT)+0.2*UP+0.3*LEFT, color=RED)
+            cross_out_line2 = Line(start=expression_to_move[0][3].get_corner(LEFT)+0.1*LEFT+0.2*DOWN, end=expression_to_move[0][3].get_corner(RIGHT)+0.2*UP+0.1*RIGHT, color=RED)
+            self.play(Create(cross_out_line1), Create(cross_out_line2))
+            self.wait()
+            self.play(FadeOut(cross_out_line1), FadeOut(cross_out_line2), FadeOut(taylor_formula[0][18][:-1]), FadeOut(expression_to_move[0][3]), FadeOut(expression_to_move[1]), 
+                      taylor_formula[0][18][-1].animate.shift(1.4*LEFT),
+                      Transform(taylor_formula[0][17], MathTex(r"\frac{\left(-1\right)^{n+1}}{1}")[0][7].scale(text_scale).next_to(taylor_formula[0][17].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                      taylor_formula[0][19:].animate.shift(1.4*LEFT))
+
+
+            # Start the approximation with n terms
+            x_sym = sympy.symbols('x')
+            f_expr = sympy.log(x_sym)
+            for i in range(11):
+                func = lambda x: taylor_approx_at_a(f_expr, x, 1, i)
+                # graph the function
+                if i == 0:
+                    graph = axes.plot(func, x_range=[0.01, 4.5, 0.01], color=ORANGE)
+                    self.play(Write(graph), Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)))
+                else:
+                    self.play(Transform(graph, axes.plot(func, x_range=[0.01, 4.5, 0.01], color=ORANGE)), Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)))
+                self.wait()
+            
+            # run a point along the originial log_graph from x=0 to x=2
+            point = Dot(axes.coords_to_point(0.01, -1000), color=LIGHT_PINK)
+            self.play(Create(point))
+            self.wait()
+            self.play(MoveAlongPath(point, axes.plot(lambda x: math.log(x), x_range=[0.1,2,0.1]), rate_func=linear))
+            self.wait()
+
+            # add a Brace from x=0 to x=2 to show the Interval of Convergence has size 2
+            brace = BraceBetweenPoints(axes.coords_to_point(0,0), axes.coords_to_point(2,0), direction=UP, color=RED)
+            text = brace.get_text("Interval of Convergence = (0,2)").scale(0.5).shift(0.2*DOWN).add_background_rectangle()
+            self.play(GrowFromCenter(brace), Write(text))
+            self.wait()
+
+            # add vertical line at x=1 and at x=2 to show the Radius of Convergence
+            line_1 = axes.get_vertical_line(axes.coords_to_point(1,0), color=RED)
+            line_2 = axes.get_vertical_line(axes.coords_to_point(2,0), color=RED)
+            self.play(Create(line_1), Create(line_2))
+            self.wait()
+
+            # add a brace to show the Radius of Convergence
+            brace_2 = BraceBetweenPoints(axes.coords_to_point(1,0), axes.coords_to_point(2,0), direction=DOWN, color=RED_D)
+            text_2 = brace_2.get_text("Radius of Convergence = 1").scale(0.5)
+            self.play(GrowFromCenter(brace_2), Write(text_2))
+            self.wait()
+            
+            # Fade out everything except the graph and the axes
+            self.play(FadeOut(taylor_formula[0][:10]), FadeOut(taylor_formula[0][17]), FadeOut(taylor_formula[0][18][-1]), FadeOut(taylor_formula[0][19:]),
+                      FadeOut(point), FadeOut(graph), FadeOut(brace), FadeOut(text), FadeOut(brace_2), FadeOut(text_2), FadeOut(dot), FadeOut(line_1),
+                      FadeOut(line_2), FadeOut(brace), FadeOut(text), FadeOut(nth_deriv_start[0][:-3]), FadeOut(result_arrow), FadeOut(expression_to_move[0][:3]))
+            self.wait()
+
+            # rewrite original taylor formula 
+            taylor_formula = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}\cdot (x-a)^{n}").scale(text_scale).to_corner(UR)
+            self.play(Write(taylor_formula))
+            
+            # add Dot at (2,log(2)) and transform a to 2
+            dot_2 = Dot(axes.coords_to_point(2, math.log(2)), color=LIGHT_PINK)
+            self.play(Create(dot_2), 
+                      Transform(taylor_formula[0][24], MathTex(r"2").set_color(LIGHT_PINK).scale(text_scale).next_to(taylor_formula[0][24].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.02*UP)),
+                      Transform(taylor_formula[0][15], MathTex(r"2").set_color(LIGHT_PINK).scale(text_scale).next_to(taylor_formula[0][15].get_corner(LEFT), aligned_edge=LEFT, buff = 0).shift(0.01*UP+0.01*RIGHT)))
+            self.wait()
+
+            # Start the approximation with n terms
+            for i in range(21):
+                # graph the function
+                if i == 0:
+                    graph = axes.plot(lambda x: taylor_approx_at_a(f_expr, x, 2, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)
+                    #Transform infinity to 0, color T(x) orange
+                    self.play(Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)),
+                              taylor_formula[0][:4].animate.set_color(ORANGE), run_time=0.4)
+                    self.wait(0.2)
+                    self.play(Write(graph), run_time=0.4)
+                else:
+                    self.play(Transform(graph, axes.plot(lambda x: taylor_approx_at_a(f_expr, x, 2, i), x_range=[0.01, 4.5, 0.01], color=ORANGE)),
+                              Transform(taylor_formula[0][5], MathTex(i).scale(0.5).next_to(taylor_formula[0][5].get_center(), direction=0, buff = 0.0, aligned_edge=ORIGIN)), run_time=0.4)
                 self.wait(0.2)
-                if i < len(highlights_denom) - 1:
-                    self.play(highlights_denom[i].animate.set_color(WHITE), run_time=0.5)
-                else: # Last one
-                    self.play(Write(nth_deriv_start[-2:]), run_time=0.5) # Show x^n part
-                    self.play(highlights_denom[i].animate.set_color(WHITE), run_time=0.5)
-            self.wait(0.5)
 
-            # Numerator (Factorial part)
-            highlights_num = [first_deriv[0][5], second_deriv[0][7], third_deriv[0][7], fourth_deriv[0][9]] # Simplified factorials
-            targets_num_text = [r"0!", r"1!", r"2!", r"3!"]
-            temp_num = VGroup()
-            for i in range(len(highlights_num)):
-                 # Create target text to measure final position (using (n-1)!)
-                target_factorial = MathTex("(n-1)!").scale(text_scale).move_to(nth_deriv_start[0][11:14], aligned_edge=LEFT)
-                temp_tex = MathTex(targets_num_text[i]).scale(text_scale).move_to(highlights_num[i])
-                temp_num.add(temp_tex)
-                self.play(Transform(highlights_num[i], temp_tex), run_time=0.5)
-                self.wait(0.2)
-                if i < len(highlights_num) - 1:
-                     self.play(FadeOut(highlights_num[i]), run_time=0.5) # Fade out previous number
-                else: # Last one
-                    self.play(Transform(temp_num, target_factorial), run_time=0.5) # Transform group into (n-1)!
-                    self.play(Write(nth_deriv_start[0][8:11]), # Write dots
-                              Write(nth_deriv_start[0][14])) # Write fraction line
-            self.wait(0.5)
-
-            # Sign
-            highlights_sign = [second_deriv[0][6], fourth_deriv[0][8]] # Minus signs
-            # Create target text to measure final position
-            target_sign = MathTex("(-1)^{n+1}").scale(text_scale).move_to(nth_deriv_start[0][8:11], aligned_edge=RIGHT)
-            sign_group = VGroup()
-            for i in range(len(highlights_sign)):
-                sign_group.add(highlights_sign[i])
-                self.play(highlights_sign[i].animate.set_color(YELLOW), run_time=0.5)
-                self.wait(0.2)
-                if i < len(highlights_sign) -1:
-                    self.play(highlights_sign[i].animate.set_color(WHITE), run_time=0.5)
-                else: # Last one
-                    # Transform the existing signs and dots into the final sign term
-                     self.play(Transform(sign_group, target_sign), run_time=0.5)
-                     self.play(Write(nth_deriv_start[0][5:8])) # Write f^(n)(x)=
-            self.wait(0.5)
-            
-            # Transform the built-up version to the final nth derivative formula
-            nth_deriv_final.move_to(nth_deriv_start)
-            self.play(Transform(nth_deriv_start, nth_deriv_final), FadeOut(temp_num), FadeOut(sign_group))
+            # show interval and radius again. This time its (0,4) and the radius is 2
+            brace = BraceBetweenPoints(axes.coords_to_point(0,0), axes.coords_to_point(4,0), direction=UP, color=RED)
+            text = brace.get_text("Convergence Interval = (0,4)").scale(0.5).shift(0.2*DOWN).add_background_rectangle()
+            self.play(GrowFromCenter(brace), Write(text))
+            self.wait()
+            brace_2 = BraceBetweenPoints(axes.coords_to_point(2,0), axes.coords_to_point(4,0), direction=DOWN, color=RED_D)
+            text_2 = brace_2.get_text("Radius of Convergence = 2").scale(0.5)
+            self.play(GrowFromCenter(brace_2), Write(text_2))
             self.wait()
 
-            # Fade out calculation steps, move nth derivative formula up
-            self.play(FadeOut(deriv_group), nth_deriv_start.animate.to_corner(UL).shift(0.5*DOWN))
+            self.play(FadeOut(text), FadeOut(brace), FadeOut(text_2), FadeOut(brace_2), FadeOut(graph), FadeOut(dot_2), FadeOut(taylor_formula))
             self.wait()
-
-            # Show evaluated version f^(n)(a)
-            nth_deriv_final_eval.next_to(nth_deriv_start, DOWN, buff=gap, aligned_edge=LEFT)
-            self.play(Write(nth_deriv_final_eval))
-            self.wait()
-            
-            # General Taylor Formula
-            taylor_formula_gen = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{(n)}(a)}{n!}(x-a)^n").scale(text_scale).next_to(nth_deriv_final_eval, DOWN, buff=gap*1.5, aligned_edge=LEFT)
-            self.play(Write(taylor_formula_gen))
-            self.wait()
-
-            # Substitute a = center_a
-            specific_tex_string = rf"T(x)=\sum_{{n=0}}^{{\infty}}\frac{{f^{{(n)}}({center_a})}}{{n!}}(x-{center_a})^n"
-            taylor_formula_specific = MathTex(specific_tex_string).scale(text_scale).move_to(taylor_formula_gen)
-            self.play(Transform(taylor_formula_gen, taylor_formula_specific))
-            self.wait()
-
-            # Substitute the expression for f^(n)(a) - requires care with n=0
-            # Box f^(n)(a) parts
-            box_eval = SurroundingRectangle(nth_deriv_final_eval[0][4:], color=RED_C, buff=0.05)
-            box_taylor = SurroundingRectangle(taylor_formula_gen[0][10:17], color=RED_C, buff=0.05) # Adjust indices based on a
-            self.play(Create(box_eval), Create(box_taylor))
-            self.wait()
-
-            # Explicitly handle n=0 case
-            text_n0_issue = Tex(r"$f^{(0)}(a) = \ln(a)$", font_size=24).next_to(taylor_formula_gen, DOWN, buff=0.5).set_color(YELLOW)
-            text_n_formula_issue = Tex(r"Formula requires $n \geq 1$", font_size=24).next_to(text_n0_issue, DOWN).set_color(YELLOW)
-            self.play(Write(text_n0_issue))
-            self.play(Write(text_n_formula_issue))
-            self.wait(1.5)
-
-            # Modify Taylor sum to start from n=1 and add f(a) separately
-            # taylor_final_form = MathTex(
-            #     r"T(x) = f(", str(center_a), r") + \sum_{n=1}^{\infty}", # Term 0
-            #     r"\frac{(-1)^{n+1}(n-1)!}{", str(center_a), r"^n \cdot n!}", # Substituted f^(n)(a)/n!
-            #     r"(x-", str(center_a), r")^n" # (x-a)^n part
-            # ).scale(text_scale).move_to(taylor_formula_gen).shift(0.1*DOWN) # Shift slightly to avoid overlap
-            taylor_final_form = MathTex(
-                rf"T(x) = f({center_a}) + \sum_{{n=1}}^{{\infty}}",           # Part 0 (f(a) term + sum start)
-                rf"\frac{{(-1)^{{n+1}}(n-1)!}}{{{center_a}^n \cdot n!}}",    # Part 1 (General term fraction before simplification)
-                rf"(x-{center_a})^n"                                         # Part 2 ((x-a)^n term)
-            ).scale(text_scale).move_to(taylor_formula_gen).shift(0.1*DOWN)
-
-            # Simplify n! = n * (n-1)! and cancel
-            taylor_simplified = MathTex(
-                rf"T(x) = \ln({center_a}) + \sum_{{n=1}}^{{\infty}}",        # Part 0 (ln(a) term + sum start)
-                rf"\frac{{(-1)^{{n+1}}}}{{{center_a}^n \cdot n}}",         # Part 1 (Simplified fraction)
-                rf"(x-{center_a})^n"                                      # Part 2 ((x-a)^n term)
-            ).scale(text_scale).move_to(taylor_final_form)
-
-            self.play(FadeOut(box_eval, box_taylor, text_n0_issue, text_n_formula_issue))
-            self.play(Transform(taylor_formula_gen, taylor_final_form))
-            self.wait(1)
-            # Show cancellation
-            term_to_simplify = taylor_final_form[1]
-            cancel_line1 = Line(term_to_simplify[6:11].get_corner(UL), term_to_simplify[6:11].get_corner(DR), color=RED, stroke_width=2) # (n-1)!
-            cancel_line2 = Line(term_to_simplify[-3:-1].get_corner(UL), term_to_simplify[-3:-1].get_corner(DR), color=RED, stroke_width=2) # n! -> n (n-1)!
-            n_only = MathTex("n").scale(text_scale).move_to(term_to_simplify[-2]).shift(0.1*LEFT) # Just the 'n' remains
-            self.play(Create(cancel_line1), Create(cancel_line2))
-            self.wait(0.5)
-            self.play(FadeOut(cancel_line1, cancel_line2))
-            self.play(Transform(taylor_formula_gen, taylor_simplified)) # Transform to simplified version
-            self.wait(1)
-
-            # Clean up derivative formulas
-            self.play(FadeOut(nth_deriv_start, nth_deriv_final_eval))
-            # Move final formula to top right
-            self.taylor_formula_display = taylor_formula_gen # Store handle
-            self.play(self.taylor_formula_display.animate.scale(0.8).to_corner(UR))
-            self.wait()
-
-            # --- Approximation Visualization ---
-            max_terms = 20 if center_a > 1 else 10 # Use more terms for larger 'a' if needed
-            
-            # Dot at center 'a'
-            self.dot_a = Dot(self.axes.c2p(center_a, math.log(center_a)), color=YELLOW)
-            self.play(Create(self.dot_a))
-            self.wait(0.5)
-
-            # Store graph handle in self.approx_graph
-            self.approx_graph = self.axes.plot(lambda x: taylorseries_log(x, 0, a=center_a), x_range=[0.01, 4.5, 0.01], color=ORANGE)
-            term_counter = MathTex("N=0").scale(0.7).next_to(self.taylor_formula_display, DOWN, buff=0.2, aligned_edge=RIGHT)
-
-            self.play(
-                Create(self.approx_graph),
-                Write(term_counter),
-                self.taylor_formula_display[0][:4].animate.set_color(ORANGE), # Color T(x)
-            )
-            self.wait(0.5)
-
-            for i in range(1, max_terms + 1):
-                new_graph = self.axes.plot(lambda x: taylorseries_log(x, i, a=center_a), x_range=[0.01, 4.5, 0.01], color=ORANGE)
-                new_term_counter = MathTex(f"N={i}").scale(0.7).move_to(term_counter)
-                self.play(
-                    Transform(self.approx_graph, new_graph),
-                    Transform(term_counter, new_term_counter),
-                    run_time=0.5 # Faster updates
-                )
-                # Add very short pauses for higher terms
-                self.wait(0.1 if i > 5 else 0.25)
-
-            self.wait(1)
-
-            # --- Show Interval and Radius ---
-            interval_start = 0
-            interval_end = 2 * center_a
-            radius = center_a
-
-            # Ensure axes cover the interval
-            if interval_end > self.axes.x_range[1]:
-                 print(f"Warning: Interval ({interval_start}, {interval_end}) exceeds axes range.")
-                 interval_end = self.axes.x_range[1] # Clamp to axes limit visually
-
-            interval_brace = BraceBetweenPoints(self.axes.c2p(interval_start, 0), self.axes.c2p(interval_end, 0), direction=UP, color=RED)
-            interval_text = interval_brace.get_text(f"Converges on ({interval_start}, {interval_end})").scale(0.6).shift(0.1*DOWN) # Adjusted size/pos
-
-            radius_brace = BraceBetweenPoints(self.axes.c2p(center_a, 0), self.axes.c2p(interval_end, 0), direction=DOWN, color=YELLOW)
-            radius_text = radius_brace.get_text(f"Radius R = {radius}").scale(0.6)
-
-            self.play(GrowFromCenter(interval_brace), Write(interval_text))
-            self.wait(0.5)
-            self.play(GrowFromCenter(radius_brace), Write(radius_text))
-            self.wait(2)
-            
-            # Store elements to fade later if needed
-            self.convergence_elements = VGroup(interval_brace, interval_text, radius_brace, radius_text, term_counter)
-            self.play(FadeOut(self.convergence_elements, self.approx_graph, self.taylor_formula_display, self.dot_a))
-
-
+        
         def show_general_radius():
-            # Fade out previous specific elements (a=2 case)
-            self.play(FadeOut(self.convergence_elements, self.approx_graph, self.taylor_formula_display, self.dot_a))
-            self.wait()
+            """Visualizes the general radius of convergence based on singularity."""
+            # Keep axes and log graph visible
 
-            # Title
+            # --- General Case Visualization ---
             title = Tex("General Case: Radius of Convergence for $f(x)=\ln(x)$", font_size=36).to_edge(UP)
             self.play(Write(title))
+            self.wait(0.5)
 
-            # Singularity at x=0
-            singularity_pt = self.axes.c2p(0, 0) # Point on axis
+            # Check if singularity is within y-axis range before drawing line
+            y_ax_min, y_ax_max = axes.y_range[:2]
             singularity_line = DashedLine(
-                self.axes.c2p(0, self.axes.y_range[0]),
-                self.axes.c2p(0, self.axes.y_range[1]),
-                color=RED,
-                stroke_width=3
+                axes.c2p(0, y_ax_min),
+                axes.c2p(0, y_ax_max),
+                color=RED, stroke_width=3
             )
-            singularity_label = Tex("Singularity!", color=RED, font_size=28).next_to(self.axes.c2p(0, 1.5), RIGHT, buff=0.1)
+            singularity_label = Tex("Singularity!", color=RED, font_size=28).next_to(axes.c2p(0, 1.5), RIGHT, buff=0.1)
+
             self.play(Create(singularity_line), Write(singularity_label))
             self.wait(1)
 
-            # General center 'a' using ValueTracker
-            a_val = ValueTracker(1.5) # Start at a generic point
+            # General center 'a' (ValueTracker)
+            initial_a = 1.5
+            a_val = ValueTracker(initial_a)
 
+            # Dot representing 'a' on the x-axis (used for vertical line later)
             a_dot = Dot(color=YELLOW, radius=0.08)
+            # Label 'a' - initially empty, updated relative to brace
             a_label = MathTex("a", color=YELLOW).scale(0.8)
-            
-            # Updaters to move dot and label with 'a_val'
-            a_dot.add_updater(lambda m: m.move_to(self.axes.c2p(a_val.get_value(), 0)))
-            a_label.add_updater(lambda m: m.next_to(a_dot, DOWN, buff=0.15))
 
-            self.play(Create(a_dot), Write(a_label))
-            self.wait(0.5)
-
-            # Line representing the radius from 'a' to singularity
+            # Radius line (from a to singularity at x=0)
             radius_line = Line(color=YELLOW, stroke_width=5)
-            radius_line.add_updater(lambda m: m.put_start_and_end_on(
-                self.axes.c2p(a_val.get_value(), 0), # Start at 'a' on axis
-                singularity_pt # End at singularity
-            ))
+            radius_line.add_updater(
+                lambda m: m.put_start_and_end_on(
+                    axes.c2p(a_val.get_value(), 0), # Start at 'a' on x-axis
+                    axes.c2p(0, 0)                  # End at singularity (origin)
+                )
+            )
 
-            # Brace for the radius
-            radius_brace = Brace(radius_line, direction=DOWN, color=YELLOW)
+            # Radius Brace and Text (with updaters)
+            radius_brace = Brace(radius_line, direction=DOWN, color=YELLOW) # Initial dummy brace
             radius_text = MathTex("R = a", color=YELLOW).scale(0.7)
 
-            # Updater for brace and text
-            def radius_updater(mob):
-                mob.become(Brace(radius_line, direction=DOWN, color=YELLOW))
-                radius_text.next_to(radius_brace, DOWN, buff=0.1)
-            radius_brace.add_updater(radius_updater)
-            radius_text.add_updater(lambda m: m.next_to(radius_brace, DOWN, buff=0.1))
-
-
-            self.play(Create(radius_line))
-            self.play(GrowFromCenter(radius_brace), Write(radius_text))
-            self.wait(1)
-
-            # Brace for the interval (0, 2a)
-            # interval_brace = Brace(color=BLUE)
-            interval_brace = VMobject()
-            interval_text = MathTex("(0, 2a)", color=BLUE).scale(0.7)
-            
-            # Updater for interval
-            def interval_updater(mob):
+            def radius_brace_updater(mob): # mob is radius_brace
                 current_a = a_val.get_value()
-                 # Clamp interval end to axes visually if needed
-                end_x = min(2*current_a, self.axes.x_range[1]) 
-                start_x = 1e-3 # Avoid exactly 0 for visual brace
-                if end_x > start_x: # Ensure valid brace points
-                     mob.become(BraceBetweenPoints(
-                        self.axes.c2p(start_x, 0), 
-                        self.axes.c2p(end_x, 0), 
+                # Only update if 'a' is positive and line has significant length
+                if current_a > 1e-3 and radius_line.get_length() > 1e-3:
+                    # Recreate brace based on current line geometry
+                    new_brace = Brace(radius_line, direction=DOWN, color=YELLOW)
+                    mob.become(new_brace) # Keep become here to update shape based on line
+
+                    # Update radius text content and position
+                    new_radius_text = MathTex(f"R = {current_a:.1f}", color=YELLOW).scale(0.7)
+                    new_radius_text.next_to(mob, DOWN, buff=0.1)
+                    radius_text.become(new_radius_text) # Use become to replace text content
+
+                    # --- FIX for Issue 1: Update 'a' label position ---
+                    # Position 'a' label near the start of the brace (where 'a' is)
+
+                    # --- ADD THIS CHECK ---
+                    if mob.has_points():
+                        a_label_target_pos = mob.get_start() + DOWN * 0.4 # Position below start
+                        a_label.move_to(a_label_target_pos)
+                        if not a_label.has_points(): # Ensure it becomes visible if it was empty
+                            a_label.set_opacity(1)
+                            # If a_label became VMobject(), setting opacity might not be enough.
+                            # A safer approach if it truly becomes VMobject() might be needed,
+                            # but let's try this first. Consider changing the 'else' block
+                            # below to just set opacity=0 instead of become(VMobject()).
+                    else:
+                        # If mob has no points even in this branch (e.g., during animation start)
+                        # make the label disappear to prevent errors/flickering.
+                        a_label.become(VMobject()) # Or a_label.set_opacity(0)
+
+                else:
+                    # If a is too small or zero, make brace have no points and text empty
+                    mob.set_points(np.zeros((0, 3))) # Safer: Make brace have no points
+                    radius_text.become(VMobject()) # Keep this for the text
+                    # --- FIX for Issue 1: Hide 'a' label ---
+                    a_label.become(VMobject()) # Make 'a' label disappear
+
+            radius_brace.add_updater(radius_brace_updater)
+            # --- REMOVE old a_label updater ---
+            # a_label.add_updater(lambda m: m.next_to(a_dot, DOWN, buff=0.15)) # REMOVED
+
+
+            # Interval Brace and Text (with updaters)
+            interval_brace = Brace(Line(LEFT, RIGHT), direction=UP, color=BLUE) # Initial dummy
+            interval_text = MathTex("(0, 2a)", color=BLUE).scale(0.7)
+
+            def interval_updater(mob): # mob is interval_brace
+                current_a = a_val.get_value()
+                start_x_interval = 0
+                end_x_interval = 2 * current_a
+                plot_start_x = max(axes.x_range[0], start_x_interval) + 0.01
+                plot_end_x = min(axes.x_range[1], end_x_interval)
+
+                if plot_end_x > plot_start_x and current_a > 1e-3:
+                    new_brace = BraceBetweenPoints(
+                        axes.c2p(plot_start_x, 0),
+                        axes.c2p(plot_end_x, 0),
                         direction=UP, color=BLUE
-                        ))
-                     interval_text.next_to(interval_brace, UP, buff=0.1)
-                else: # If a is too small, hide brace/text
-                    mob.become(VMobject()) # Become empty
+                    )
+                    mob.become(new_brace)
+                    new_interval_text = MathTex(f"(0, {end_x_interval:.1f})", color=BLUE).scale(0.7)
+                    new_interval_text.next_to(mob, UP, buff=0.1)
+                    interval_text.become(new_interval_text)
+                else:
+                    mob.set_points(np.zeros((0, 3)))
                     interval_text.become(VMobject())
 
             interval_brace.add_updater(interval_updater)
-            interval_text.add_updater(lambda m: m.next_to(interval_brace, UP, buff=0.1) if interval_brace.has_points() else m.become(VMobject()))
+
+            # --- Approximation Graph Setup ---
+            approx_graph_dynamic = VMobject().set_z_index(-1) # Put behind axis lines/labels
+            approx_graph_dynamic._last_a_value = None # Initialize
+
+            # --- Moving Dot and Vertical Line Setup ---
+            vertical_line = DashedLine(stroke_width=2, color=YELLOW, stroke_opacity=0.7)
+            # func = lambda x: math.log(x) # Define func if not already available
+
+            def dot_line_updater(mob): # mob is dummy_updater_mob
+                a = a_val.get_value()
+                y_val = 0 # Default y
+                try:
+                    # Make sure func is defined or use math.log directly
+                    y_val = math.log(a) # Using math.log directly
+                except ValueError: # Handle log(a) for a<=0
+                    pass # Keep y_val = 0
+                if not np.isfinite(y_val): y_val = 0
+
+                graph_point = axes.c2p(a, y_val)
+                a_dot.move_to(graph_point) # a_dot moves on the log graph now
+                vertical_line.put_start_and_end_on(graph_point, axes.c2p(a, 0))
+
+            dummy_updater_mob = Mobject().add_updater(dot_line_updater)
 
 
-            self.play(GrowFromCenter(interval_brace), Write(interval_text))
+            # --- OPTIMIZED Updater for Dynamic Approximation Graph ---
+            def approx_graph_updater(mob): # mob is approx_graph_dynamic
+                current_a = a_val.get_value()
+                if current_a <= 0: # Skip if center is invalid
+                    mob.become(VMobject())
+                    mob._last_a_value = current_a
+                    return
+
+                previous_a = getattr(mob, '_last_a_value', None)
+                tolerance = 1e-5 # Adjusted tolerance slightly
+
+                a_has_changed = (previous_a is None) or (abs(current_a - previous_a) > tolerance)
+
+                if a_has_changed:
+                    # print(f"Recalculating graph for a = {current_a}") # Debug
+                    a = current_a
+                    R = a # Radius for ln(x) centered at a is a
+                    # Define plot range based on ROC (0, 2a), slightly extended
+                    plot_start = max(0.01, axes.x_range[0]) # Start near 0
+                    plot_end = min(2 * a + 1, axes.x_range[1]) # End near 2a + buffer
+
+                    new_graph_generated = False
+                    if plot_end > plot_start + 0.05:
+                        try:
+                            # --- FIX for Issue 2: Use correct function ---
+                            # Assuming 10 terms for approximation
+                            x_sym = sympy.symbols('x')
+                            f_expr = sympy.log(x_sym)
+                            current_approx_func = lambda x: taylor_approx_at_a(f_expr, x, a, 10)
+
+                            x_values = np.linspace(plot_start, plot_end, num=100) # Reduced points slightly
+                            y_values = np.array([current_approx_func(x) for x in x_values])
+
+                            # Filter out non-finite values
+                            valid_indices = np.isfinite(y_values) # Keep only finite
+                            x_values = x_values[valid_indices]
+                            y_values = y_values[valid_indices]
+
+                            # Further filter extreme values if needed (optional)
+                            y_limit = 10 # Example limit
+                            valid_indices_lim = np.abs(y_values) < y_limit
+                            x_values = x_values[valid_indices_lim]
+                            y_values = y_values[valid_indices_lim]
+
+                            if len(x_values) > 1:
+                                new_graph = axes.plot_line_graph(
+                                    x_values=x_values, y_values=y_values,
+                                    line_color=ORANGE, stroke_width=3, # Slightly thinner
+                                    add_vertex_dots=False
+                                )
+                                mob.become(new_graph)
+                                new_graph_generated = True
+                        except Exception as e:
+                            print(f"Error during graph generation for a={a}: {e}") # Print errors
+
+                    if not new_graph_generated:
+                        mob.become(VMobject())
+
+                    mob._last_a_value = current_a
+
+
+            approx_graph_dynamic.add_updater(approx_graph_updater)
+
+            # --- Add Objects with Updaters to Scene ---
+            self.play(FadeIn(radius_line), FadeIn(radius_brace), FadeIn(radius_text), FadeIn(interval_brace), FadeIn(interval_text),
+                      FadeIn(dummy_updater_mob), FadeIn(a_dot), FadeIn(a_label), FadeIn(vertical_line), Create(approx_graph_dynamic))
+
+
+            # --- Initial Creation Animations (Optional but Recommended) ---
+            # Instead of just adding, maybe animate creation?
+            # Need to call updaters once manually before animating creation
+            dot_line_updater(dummy_updater_mob)
+            radius_brace_updater(radius_brace)
+            interval_updater(interval_brace)
+            approx_graph_updater(approx_graph_dynamic) # Calculate initial graph state
+
+            # Play creation animations
+            initial_create_anims = [
+                Create(a_dot), Write(a_label), Create(vertical_line),
+                Create(radius_line), GrowFromCenter(radius_brace), Write(radius_text),
+                GrowFromCenter(interval_brace), Write(interval_text),
+            ]
+            # Only add graph creation if it has points initially
+            if approx_graph_dynamic.has_points():
+                initial_create_anims.append(Create(approx_graph_dynamic))
+
+            # Filter out animations for potentially empty objects
+            initial_create_anims_filtered = [anim for anim in initial_create_anims if anim.mobject.has_points()]
+
+            if initial_create_anims_filtered:
+                self.play(*initial_create_anims_filtered, run_time=1.5)
+            else:
+                print("Warning: Could not create initial general radius elements via animation.")
+                # Objects were already added, so they should appear if they have points.
+
             self.wait(1)
 
-            # Animate 'a' changing
+
+            # --- Animate 'a' changing ---
             explanation_text = Tex(
-                "The distance from center 'a' to the singularity at $x=0$ determines the radius $R=a$.",
+                "Distance from center $a$ to singularity at $x=0$ determines radius $R=a$.",
                 font_size=28
             ).next_to(title, DOWN, buff=0.3)
             self.play(Write(explanation_text))
             self.wait(1)
 
-            self.play(a_val.animate.set_value(1), run_time=2)
-            self.wait(1)
-            self.play(a_val.animate.set_value(2), run_time=2)
-            self.wait(1)
-            self.play(a_val.animate.set_value(0.5), run_time=2)
-            self.wait(1)
-            # Return to generic
-            self.play(a_val.animate.set_value(1.5), run_time=1)
-            self.wait(2)
-            
-            # Final Conclusion Text
+            target_a_values = [1.0, 2.5, 0.5, initial_a] # Adjusted target values
+            run_times = [2.5, 3.0, 2.5, 1.5] # Adjusted run times
+
+            for target_a, rt in zip(target_a_values, run_times):
+                self.play(a_val.animate.set_value(target_a), run_time=rt)
+                # No wait needed here, updaters handle changes during animation
+            self.wait(1) # Pause at the final position
+
+
+            # --- Final Conclusion Text ---
             conclusion = Tex(
-                r"The Taylor series for $\ln(x)$ centered at $a>0$ converges on the interval $(0, 2a)$.",
+                r"Taylor series for $\ln(x)$ centered at $a>0$ converges on $(0, 2a)$ with radius $R=a$.",
                 font_size=32
-            ).to_edge(DOWN, buff=0.5)
+            ).next_to(axes, DOWN, buff=0.5).shift_onto_screen()
             self.play(Write(conclusion))
             self.wait(3)
 
-            # Cleanup updaters before finishing
-            a_dot.clear_updaters()
-            a_label.clear_updaters()
-            radius_line.clear_updaters()
-            radius_brace.clear_updaters()
-            radius_text.clear_updaters()
-            interval_brace.clear_updaters()
-            interval_text.clear_updaters()
+            # --- Cleanup Updaters and Fade Out ---
+            print("Clearing updaters...") # Debug print
+            # Important: Remove dummy updater mob first to stop its updater
+            self.remove(dummy_updater_mob)
+            # Then clear updaters from the actual objects
+            mobjects_with_updaters = [
+                a_dot, a_label, radius_line, radius_brace, interval_brace,
+                approx_graph_dynamic, radius_text, interval_text # Include texts just in case
+                ]
+            for mobj in mobjects_with_updaters:
+                # Check if object exists before clearing, belt-and-braces
+                if mobj is not None:
+                    mobj.clear_updaters()
 
-            # Fade out general explanation elements
-            self.play(FadeOut(title, singularity_line, singularity_label, a_dot, a_label, radius_line, radius_brace, radius_text, interval_brace, interval_text, explanation_text, conclusion))
+            print("Fading out general explanation elements...") # Debug print
+            elements_to_fade_general = [
+                title, singularity_line, singularity_label,
+                a_dot, a_label, radius_line, radius_brace, radius_text,
+                interval_brace, interval_text, vertical_line,
+                approx_graph_dynamic, # Include the dynamic graph
+                explanation_text, conclusion
+                ]
+            # Filter out any potentially empty/None VMobjects again
+            elements_to_fade_general = [m for m in elements_to_fade_general if m and m.has_points()]
+
+            if elements_to_fade_general:
+                self.play(*[FadeOut(m) for m in elements_to_fade_general])
+            else:
+                print("Warning: No elements to fade out.") # Debug print
             self.wait(1)
-            # Optionally keep axes and log graph for the end
-            self.play(FadeOut(self.log_label)) # Fade label if desired
-
-
-        # --- Call the functions ---
+        
         setup_graph()
-        calculate_derivatives(center_a=1) # Run for a=1
-        calculate_derivatives(center_a=2) # Run for a=2
-        show_general_radius() # Run the new general explanation
-
-        self.wait(2) # Hold final scene briefly
+        calculate_derivatives()
+        show_general_radius()
 
 class RadiusOfConvergence_v3(Scene):
     def construct(self):
@@ -1698,6 +1902,8 @@ class RadiusOfConvergence_v3(Scene):
         self.log_graph = VMobject()
         self.log_label = VMobject()
         self.nth_deriv_formula_display = VMobject() # Will hold f^(n)(x) formula
+        self.n_deriv_start = VMobject() # Will hold f^(n)(x) start formula
+        self.result_arrow = VMobject() # Will hold arrow for f^(n)(x) formula
 
         # --- Instance variables for objects specific to a center 'a' ---
         # These need to be cleaned up before showing the next 'a'
@@ -1710,7 +1916,7 @@ class RadiusOfConvergence_v3(Scene):
         # --- Helper Functions ---
         def setup_graph():
             self.log_graph = self.axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=GREEN_D)
-            self.log_label = MathTex(r"f(x)=\ln(x)", color=GREEN_D).to_corner(UL).shift(DOWN*0.5 + RIGHT*0.5)
+            self.log_label = MathTex("f(x)=log(x)").set_color(GREEN_D).to_corner(UR).scale(0.8).shift(2*DOWN)
             self.play(FadeIn(self.axes))
             self.wait(0.5)
             self.play(Create(self.log_graph))
@@ -1718,17 +1924,20 @@ class RadiusOfConvergence_v3(Scene):
             self.wait()
 
         def derive_nth_derivative():
-            text_scale = 0.7
-            gap = 0.4
+            text_scale = 0.75
+            gap = 0.5
             deriv_group = VGroup()
 
             # --- Derivatives Display ---
-            function = MathTex(r"f(x)=\ln(x)").scale(text_scale).to_corner(UL).shift(DOWN*1.5)
-            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function, DOWN, aligned_edge=LEFT, buff = gap)
-            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv, DOWN, aligned_edge=LEFT, buff = gap)
-            third_deriv = MathTex(r"f'''(x)=\frac{2}{x^3}").scale(text_scale).next_to(second_deriv, DOWN, aligned_edge=LEFT, buff = gap)
-            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{6}{x^4}").scale(text_scale).next_to(third_deriv, DOWN, aligned_edge=LEFT, buff = gap)
-            deriv_group.add(function, first_deriv, second_deriv, third_deriv, fourth_deriv)
+            function = MathTex("f(x)=log(x)").scale(text_scale).to_corner(UL)
+            first_deriv = MathTex(r"f'(x)=\frac{1}{x}").scale(text_scale).next_to(function.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}").scale(text_scale).next_to(first_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            third_deriv = MathTex(r"f'''(x)=\frac{1\cdot2}{x^3}").scale(text_scale).next_to(second_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot2\cdot3}{x^4}").scale(text_scale).next_to(third_deriv.get_corner(LEFT), direction=DOWN, aligned_edge=LEFT, buff = gap)
+            result_arrow = Arrow(start=function.get_right(), end=function.get_right()+[2,0,0], color=RED, buff=0.1).scale(text_scale)
+            self.n_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.1, aligned_edge=LEFT).shift(0.1*DOWN)
+            deriv_group.add(function, first_deriv, second_deriv, third_deriv, fourth_deriv, result_arrow, self.n_deriv_start)
+
 
             # --- Final nth Derivative Formula ---
             # Use f-string for correct parsing, ensure literal braces are doubled {{}}
@@ -1747,29 +1956,42 @@ class RadiusOfConvergence_v3(Scene):
             # Denominator x^n
             # Indices: f'[7], f''[9:11], f'''[9:11], f(4)[11:13] --> nth[-2:] ('x^n')
             anim_denom = Succession(
-                Indicate(first_deriv[0][7], color=RED), Indicate(second_deriv[0][9:11], color=RED),
-                Indicate(third_deriv[0][9:11], color=RED), Indicate(fourth_deriv[0][11:13], color=RED),
+                Indicate(first_deriv[0][8], color=RED), Indicate(second_deriv[0][10:12], color=RED),
+                Indicate(third_deriv[0][12:14], color=RED), Indicate(fourth_deriv[0][15:17], color=RED),
             )
-            self.play(anim_denom)
-            self.wait(0.5)
+            self.play(anim_denom);self.wait(0.5)
+
+            # Start nth deriv
+            self.play(Write(result_arrow));self.wait(0.5)
+            self.play(Write(self.n_deriv_start));self.wait(0.5)
 
             # Numerator (n-1)!
             # Indices: f'[5] ('1'), f''[7] ('1'), f'''[7] ('2'), f(4)[9] ('6') --> nth[13:18] ('(n-1)!')
-             # Note: Indices depend heavily on exact tex string rendering, might need adjustment
+            # Note: Indices depend heavily on exact tex string rendering, might need adjustment
             anim_num = Succession(
-                Indicate(first_deriv[0][5], color=YELLOW), Indicate(second_deriv[0][7], color=YELLOW),
-                Indicate(third_deriv[0][7], color=YELLOW), Indicate(fourth_deriv[0][9], color=YELLOW),
+                Indicate(first_deriv[0][6], color=YELLOW), Indicate(second_deriv[0][8], color=YELLOW),
+                Indicate(third_deriv[0][8:11], color=YELLOW), Indicate(fourth_deriv[0][9:14], color=YELLOW),
             )
             self.play(anim_num)
             self.wait(0.5)
 
+            # Transform result formula
+            self.play(Transform(self.n_deriv_start[0][11:14], MathTex(r"(n-1)!").scale(text_scale).next_to(self.n_deriv_start[0][11:14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    Transform(self.n_deriv_start[0][14], MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(self.n_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    self.n_deriv_start[0][15:17].animate.shift((MathTex(r"\frac{(n-1)!}{x^n}")[0][6].scale(text_scale).next_to(self.n_deriv_start[0][14].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_x()-self.n_deriv_start[0][15:17].get_x())*RIGHT))
+            self.wait()
+
             # Sign (-1)^(n+1)
             # Indices: f''[6] ('-'), f(4)[8] ('-') --> nth[8:13] ('(-1)^{n+1}')
             anim_sign = Succession(
-                 Indicate(second_deriv[0][6], color=BLUE), Indicate(fourth_deriv[0][8], color=BLUE)
+                Indicate(second_deriv[0][7], color=BLUE), Indicate(fourth_deriv[0][8], color=BLUE)
             )
             self.play(anim_sign)
             self.wait(0.5)
+
+            self.play(Transform(self.n_deriv_start[0][8:11], MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(self.n_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT)),
+                    self.n_deriv_start[0][11:].animate.shift((MathTex(r"(-1)^{n+1}").scale(text_scale).next_to(self.n_deriv_start[0][8:11].get_corner(LEFT), direction=RIGHT, buff = 0, aligned_edge=LEFT).get_corner(RIGHT)[0]-self.n_deriv_start[0][10].get_corner(RIGHT)[0])*RIGHT))
+            self.wait()
 
             # Transform into the final formula
             nth_deriv_final.move_to(fourth_deriv, aligned_edge=LEFT).shift(DOWN * gap * 1.5)
@@ -1780,9 +2002,19 @@ class RadiusOfConvergence_v3(Scene):
             self.nth_deriv_formula_display = nth_deriv_final # Store handle
             self.play(self.nth_deriv_formula_display.animate.to_corner(UL))
             self.wait()
+            # Fade Out most stuff, move nth_deriv to the top left and then create taylor approximation formula
+            self.play(AnimationGroup(FadeOut(VGroup(function, first_deriv, second_deriv, third_deriv, fourth_deriv, result_arrow)), self.n_deriv_start.animate.to_corner(UL), lag_ratio=0.5))
+            self.wait()
+            self.result_arrow = Arrow(start=self.n_deriv_start.get_corner(RIGHT), end=self.n_deriv_start.get_corner(RIGHT)+[1.8,0,0], color=RED, buff=0.1).scale(text_scale)
+            self.text_scale = text_scale *0.93
+            self.play(Write(self.result_arrow))
+
 
         def show_taylor_for_center(center_a):
-            text_scale = 0.7
+            taylor_formula = MathTex(r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}\cdot (x-a)^{n}").scale(text_scale).next_to(result_arrow.get_corner(RIGHT), direction=RIGHT, buff = 0.15, aligned_edge=LEFT)
+            self.play(AnimationGroup(Write(taylor_formula), lag_ratio=0.5))
+            self.wait()
+            text_scale = self.text_scale
             gap = 0.4
 
             # --- Cleanup from previous center (if any) ---
@@ -2158,6 +2390,864 @@ class RadiusOfConvergence_v3(Scene):
 
         self.wait(2) # Hold final axes and log graph
 
+class RadiusOfConvergenceRefined(Scene):
+    # --- Class Setup ---
+    def setup(self):
+        # Initialize shared attributes here if needed across methods
+        self.axes = None
+        self.log_graph = None
+        self.log_label = None
+        self.nth_deriv_formula_display = None # Will hold the f^(n)(x) MathTex
+        self.general_taylor_formula = None   # Will hold the general T(x) MathTex
+        self.result_arrow = None
+        self.text_scale = 0.75 # Base text scale
+
+        # For cleanup between center changes / general radius
+        self.approx_graph = VMobject() # Use empty VMobject to avoid errors if plot fails
+        self.taylor_formula_display = VMobject() # Specific T(x) for center 'a'
+        self.dot_a = VMobject()
+        self.term_counter = VMobject()
+        self.convergence_elements = VGroup() # Braces, text for interval/radius
+
+    # --- Scene Construction ---
+    def construct(self):
+        self.setup() # Initialize attributes
+
+        self.setup_axes_and_graph()
+        self.derive_nth_derivative_detailed() # Use the detailed version
+        
+        # --- Show for a=1 ---
+        self.show_taylor_for_center(center_a=1)
+
+        # --- Transition from a=1 to a=2 ---
+        print("Transitioning from a=1 to a=2")
+        # 1. Fade out a=1 specific elements
+        a1_elements = [
+            self.approx_graph,
+            self.taylor_formula_display, # The specific T(x) for a=1 (in UR corner)
+            self.dot_a,
+            self.term_counter,
+        ]
+        if self.convergence_elements and len(self.convergence_elements) > 0:
+            a1_elements.append(self.convergence_elements)
+        
+        objects_to_fade_a1 = [m for m in a1_elements if m and m.has_points()]
+        
+        # Also clear the convergence group for the next run
+        self.convergence_elements = VGroup() 
+
+        # Keep nth_deriv_formula_display (UL corner) and the result_arrow
+        animations = [FadeOut(m) for m in objects_to_fade_a1]
+        
+        # 2. Ensure general formulas are visible and correctly positioned
+        # nth derivative formula should already be in UL corner
+        # General Taylor formula should be next to the arrow
+        # We need to ensure self.general_taylor_formula is the one displayed
+        animations.append(FadeIn(self.general_taylor_formula)) # Fade it back in
+        animations.append(FadeIn(self.result_arrow))
+        # Ensure nth deriv is visible too
+        animations.append(FadeIn(self.nth_deriv_formula_display)) 
+        
+        if animations:
+            self.play(*animations)
+        self.wait(1)
+
+        # --- Show for a=2 ---
+        self.show_taylor_for_center(center_a=2)
+
+        # --- Show General Radius Explanation ---
+        self.show_general_radius()
+
+        print("Animation Complete")
+
+    # --- Helper Methods ---
+    
+    def setup_axes_and_graph(self):
+
+        self.axes = Axes(
+            x_range = [-2,4.5,1],
+            y_range = [-2.5,2.5,1],
+            x_length = 12,
+            y_length = 6,
+            axis_config = {"include_tip": True, "color": BLUE, "include_numbers": True},
+        ).shift(1*DOWN, 0.5*RIGHT)
+
+        self.log_graph = self.axes.plot(lambda x: math.log(x), x_range=[0.01, 4.5, 0.01], color=GREEN_D)
+        self.log_label = MathTex("f(x)=ln(x)").set_color(GREEN_D).to_corner(UR).scale(0.8).shift(2*DOWN)
+        self.play(FadeIn(self.axes))
+        self.wait()
+        self.play(Write(self.log_graph), Write(self.log_label))
+        self.wait()
+
+    def derive_nth_derivative_detailed(self):
+        """Derives the nth derivative using the detailed highlighting style."""
+        text_scale = 0.7 # Slightly smaller scale for more text
+        gap = 0.45
+        deriv_group = VGroup() # Group elements for later fade-out
+
+        # --- Derivatives Display ---
+        function = MathTex(r"f(x)=\ln(x)", tex_template=TexTemplateLibrary.ctex).scale(text_scale).to_corner(UL)
+        first_deriv = MathTex(r"f'(x)=\frac{1}{x}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).next_to(function, DOWN, aligned_edge=LEFT, buff=gap)
+        second_deriv = MathTex(r"f''(x)=-\frac{1}{x^2}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).next_to(first_deriv, DOWN, aligned_edge=LEFT, buff=gap)
+        # Use 1*2 explicitly for pattern
+        third_deriv = MathTex(r"f'''(x)=\frac{1\cdot 2}{x^3}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).next_to(second_deriv, DOWN, aligned_edge=LEFT, buff=gap)
+        # Use 1*2*3 explicitly for pattern
+        fourth_deriv = MathTex(r"f^{(4)}(x)=-\frac{1\cdot 2\cdot 3}{x^4}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).next_to(third_deriv, DOWN, aligned_edge=LEFT, buff=gap)
+        
+        # Arrow and initial nth derivative guess
+        result_arrow = Arrow(start=function.get_right() + RIGHT * 0.2, end=function.get_right() + RIGHT * 1.5, color=RED, buff=0.1).scale(text_scale)
+        n_deriv_start = MathTex(r"f^{(n)}(x)=\cdots\frac{\cdots}{x^n}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).next_to(result_arrow, RIGHT, buff=0.1)
+        
+        deriv_group.add(function, first_deriv, second_deriv, third_deriv, fourth_deriv, result_arrow, n_deriv_start)
+
+        # Write initial derivatives
+        self.play(Write(function)); self.wait(0.5)
+        self.play(Write(first_deriv)); self.wait(0.5)
+        self.play(Write(second_deriv)); self.wait(0.5)
+        self.play(Write(third_deriv)); self.wait(0.5)
+        self.play(Write(fourth_deriv)); self.wait(1)
+
+        # --- Detailed Highlighting (like old code) ---
+        highlight_color = YELLOW_C # Use a different color than RED arrow
+
+        # 1. Denominator x^n
+        # Indices need careful checking! Use print(mobject.submobjects) or index_labels() if needed.
+        # Assuming default MathTex tokenization:
+        # f'(x)= \frac{1}{x} -> x is roughly index [6]
+        # f''(x)=- \frac{1}{x^2} -> x^2 is roughly [8:10]
+        # f'''(x)= \frac{1 \cdot 2}{x^3} -> x^3 is roughly [10:12]
+        # f^{(4)}(x)=- \frac{1 \cdot 2 \cdot 3}{x^4} -> x^4 is roughly [13:15]
+        # Note: These indices WILL change if the TeX string changes slightly.
+        idx1 = slice(6, 7)  # 'x' in 1/x
+        idx2 = slice(8, 10) # 'x^2' in -1/x^2
+        idx3 = slice(10, 12) # 'x^3' in 2/x^3
+        idx4 = slice(13, 15) # 'x^4' in -6/x^4
+        # Target: x^n in n_deriv_start, roughly [-2:] or [15:17]
+        idxN_denom = slice(15, 17) 
+
+        print("Highlighting Denominators...")
+        self.play(first_deriv[0][idx1].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(first_deriv[0][idx1].animate.set_color(WHITE), second_deriv[0][idx2].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(second_deriv[0][idx2].animate.set_color(WHITE), third_deriv[0][idx3].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(third_deriv[0][idx3].animate.set_color(WHITE), fourth_deriv[0][idx4].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(fourth_deriv[0][idx4].animate.set_color(WHITE))
+        self.wait(0.5)
+
+        # Show arrow and initial nth deriv guess (focus on denominator)
+        self.play(GrowArrow(result_arrow)); self.wait(0.3)
+        self.play(Write(n_deriv_start)); self.wait(0.3)
+        self.play(Indicate(n_deriv_start[0][idxN_denom], color=highlight_color))
+        self.wait(1)
+
+        # 2. Numerator (n-1)!
+        # Indices:
+        # f'(x)= \frac{1}{x} -> 1 is roughly index [4]
+        # f''(x)=- \frac{1}{x^2} -> 1 is roughly [6]
+        # f'''(x)= \frac{1 \cdot 2}{x^3} -> 1 \cdot 2 is roughly [6:9]
+        # f^{(4)}(x)=- \frac{1 \cdot 2 \cdot 3}{x^4} -> 1 \cdot 2 \cdot 3 is roughly [7:12]
+        # Target: ... in n_deriv_start, roughly [11:14]
+        idx1_num = slice(4, 5)
+        idx2_num = slice(6, 7)
+        idx3_num = slice(6, 9)
+        idx4_num = slice(7, 12)
+        idxN_num_placeholder = slice(11, 14) # The '...' placeholder for numerator
+
+        print("Highlighting Numerators...")
+        self.play(first_deriv[0][idx1_num].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(first_deriv[0][idx1_num].animate.set_color(WHITE), second_deriv[0][idx2_num].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(second_deriv[0][idx2_num].animate.set_color(WHITE), third_deriv[0][idx3_num].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(third_deriv[0][idx3_num].animate.set_color(WHITE), fourth_deriv[0][idx4_num].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(fourth_deriv[0][idx4_num].animate.set_color(WHITE))
+        self.wait(0.5)
+
+        # Transform numerator placeholder to (n-1)!
+        num_target = MathTex("(n-1)!").scale(text_scale).move_to(n_deriv_start[0][idxN_num_placeholder])
+        self.play(Transform(n_deriv_start[0][idxN_num_placeholder], num_target))
+        self.wait(1)
+
+        # 3. Sign (-1)^(n+1)
+        # Indices:
+        # f''(x)=- ... -> - is roughly index [5]
+        # f^{(4)}(x)=- ... -> - is roughly index [6]
+        # Target: ... in n_deriv_start, roughly [8:11]
+        idx2_sign = slice(5, 6)
+        idx4_sign = slice(6, 7)
+        idxN_sign_placeholder = slice(8, 11) # The '...' placeholder for sign
+
+        print("Highlighting Signs...")
+        # Indicate the positive terms (implicitly)
+        self.play(Indicate(first_deriv[0][0:5], scale_factor=1.05), Indicate(third_deriv[0][0:6], scale_factor=1.05)) # Indicate f' and f''' are positive
+        self.wait(0.7)
+        # Highlight negative signs
+        self.play(second_deriv[0][idx2_sign].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(second_deriv[0][idx2_sign].animate.set_color(WHITE), fourth_deriv[0][idx4_sign].animate.set_color(highlight_color)); self.wait(0.7)
+        self.play(fourth_deriv[0][idx4_sign].animate.set_color(WHITE))
+        self.wait(0.5)
+
+        # Transform sign placeholder to (-1)^(n+1)
+        # Be careful with positioning after previous transform
+        sign_target = MathTex(r"(-1)^{n+1}", tex_template=TexTemplateLibrary.ctex).scale(text_scale).move_to(n_deriv_start[0][idxN_sign_placeholder])
+
+        # We need to shift the numerator and denominator that were already placed
+        # Calculate shift based on the width difference between "..." and "(-1)^{n+1}"
+        # Get the actual Mobject representing the placeholder to measure width accurately
+        original_placeholder_mobject = n_deriv_start[0][idxN_sign_placeholder]
+        original_placeholder_width = original_placeholder_mobject.width if original_placeholder_mobject.has_points() else 0
+        
+        # Measure the width of the target sign Mobject
+        new_sign_width = sign_target.width
+
+        # Calculate the shift amount needed for subsequent elements
+        # Elements after the sign need to shift right by the difference in width
+        shift_amount = new_sign_width - original_placeholder_width
+
+        # --- *** CORRECTED LINE BELOW *** ---
+        # Select elements from the start index of the numerator slice to the end
+        elements_to_shift = n_deriv_start[0][idxN_num_placeholder.start:]
+
+        self.play(
+            Transform(n_deriv_start[0][idxN_sign_placeholder], sign_target),
+            # Animate the shift of the selected elements
+            elements_to_shift.animate.shift(shift_amount * RIGHT)
+        )
+        # --- *** END CORRECTION *** ---
+        self.wait(1)
+
+        # Store the derived formula Mobject
+        self.nth_deriv_formula_display = n_deriv_start # This is now the complete formula
+
+
+        # --- Final Transition ---
+        # Move the derived formula to UL corner, fade others
+        self.play(
+            FadeOut(VGroup(function, first_deriv, second_deriv, third_deriv, fourth_deriv)),
+            self.nth_deriv_formula_display.animate.to_corner(UL)
+        )
+        self.wait(0.5)
+
+        # Recreate result arrow pointing from the formula in the corner
+        self.result_arrow = Arrow(
+            start=self.nth_deriv_formula_display.get_right(),
+            end=self.nth_deriv_formula_display.get_right() + RIGHT * 1.8, # Adjust length as needed
+            color=RED, buff=0.1
+        ).scale(self.text_scale) # Use the class text scale
+
+        # General Taylor Formula Display
+        self.text_scale *= 0.93 # Adjust scale slightly if needed
+        taylor_tex = r"T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}(x-a)^{n}"
+        # Use the class attribute directly
+        self.general_taylor_formula = MathTex(taylor_tex, tex_template=TexTemplateLibrary.ctex).scale(self.text_scale)
+        self.general_taylor_formula.next_to(self.result_arrow, RIGHT, buff=0.15)
+        
+        self.play(GrowArrow(self.result_arrow), Write(self.general_taylor_formula))
+        self.wait(1)
+
+        # Remove the arrow and formula temporarily, they will be brought back in the transition
+        # Or just leave them, the transition logic will handle fade in/out. Let's leave them.
+
+
+    def show_taylor_for_center(self, center_a):
+        """Shows Taylor approximation build-up for a given center 'a'."""
+        print(f"Showing Taylor Approximation for a = {center_a}")
+        text_scale = self.text_scale # Use current text scale
+        gap = 0.4
+
+        # --- Cleanup from previous center (if any) ---
+        cleanup_targets = [
+            self.approx_graph,
+            self.taylor_formula_display, # Specific T(x) formula
+            self.dot_a,
+            self.term_counter,
+        ]
+        if self.convergence_elements and len(self.convergence_elements) > 0:
+             cleanup_targets.append(self.convergence_elements)
+        
+        objects_to_fade = [m for m in cleanup_targets if m and m.has_points()]
+        if objects_to_fade:
+            self.play(*[FadeOut(m) for m in objects_to_fade])
+        self.convergence_elements = VGroup() # Reset group
+        # Don't fade self.general_taylor_formula here, we transform it.
+        # Don't fade self.nth_deriv_formula_display (UL corner) or self.result_arrow
+        self.wait(0.5)
+
+
+        # --- Evaluate f^(n)(a) ---
+        # nth_deriv_formula_display should be visible in UL corner.
+        # Make a copy to evaluate without modifying the original in the corner
+        nth_deriv_eval_source = self.nth_deriv_formula_display.copy()
+        nth_deriv_eval_source.generate_target()
+        nth_deriv_eval_source.target.next_to(self.nth_deriv_formula_display, DOWN, buff=gap*1.5, aligned_edge=LEFT)
+        self.play(MoveToTarget(nth_deriv_eval_source))
+        self.wait(0.5)
+
+        # Indices in nth_deriv_tex: rf"f^{{(n)}}(x)=(-1)^{{n+1}}\frac{{(n-1)!}}{{x^n}}"
+        # Find 'x' - might vary based on final form after transforms
+        # Let's assume indices based on the final form derived previously
+        # Example: 'x' in f^(n)(x) might be index 5
+        # Example: 'x' in x^n might be index -2 (second to last char)
+        try:
+            x_in_fn_idx = nth_deriv_eval_source.index_of_part_by_tex("x") # First 'x'
+            x_in_xn_idx = nth_deriv_eval_source.index_of_part_by_tex("x", substring=False, start_index=x_in_fn_idx+1) # Second 'x'
+            x_in_fn = nth_deriv_eval_source[0][x_in_fn_idx]
+            x_in_xn = nth_deriv_eval_source[0][x_in_xn_idx]
+        except Exception as e:
+            print(f"Warning: Could not find 'x' indices reliably in {nth_deriv_eval_source.tex_string}. Using fallback indices. Error: {e}")
+            # Fallback indices (adjust based on visual inspection/debugging)
+            x_in_fn = nth_deriv_eval_source[0][5]
+            x_in_xn = nth_deriv_eval_source[0][-2] # Often the 'x' in x^n is near the end
+
+
+        a_label_fn = MathTex(str(center_a), color=YELLOW).scale(text_scale).move_to(x_in_fn)
+        a_label_xn = MathTex(str(center_a), color=YELLOW).scale(text_scale).move_to(x_in_xn)
+
+        # Create the target evaluated expression MathTex
+        eval_tex = rf"f^{{(n)}}({center_a})=(-1)^{{n+1}}\frac{{(n-1)!}}{{{center_a}^n}}"
+        nth_deriv_eval_target = MathTex(eval_tex, tex_template=TexTemplateLibrary.ctex).scale(text_scale)
+        nth_deriv_eval_target.move_to(nth_deriv_eval_source)
+
+        # Animate substitution and transform
+        self.play(Transform(x_in_fn, a_label_fn), Transform(x_in_xn, a_label_xn))
+        self.wait(0.5)
+        # Transform the whole expression while keeping the yellow 'a's
+        self.play(
+            Transform(nth_deriv_eval_source, nth_deriv_eval_target),
+            # Fade out the yellow labels simultaneously with the transform
+            FadeOut(x_in_fn, rate_func=lambda t: smooth(1-t)),
+            FadeOut(x_in_xn, rate_func=lambda t: smooth(1-t))
+        )
+        self.wait(1)
+        # We'll keep nth_deriv_eval_source (now transformed) on screen for the next step
+
+
+        # --- Taylor Formula Setup & Substitution 'a' ---
+        # self.general_taylor_formula should be visible next to the arrow
+        taylor_gen_formula_copy = self.general_taylor_formula.copy() # Work on a copy
+
+        # Target specific formula T(x) for this 'a'
+        taylor_spec_tex = rf"T(x)=\sum_{{n=0}}^{{\infty}}\frac{{f^{{(n)}}({center_a})}}{{n!}}(x-{center_a})^n"
+        taylor_spec_formula = MathTex(taylor_spec_tex, tex_template=TexTemplateLibrary.ctex).scale(text_scale)
+        taylor_spec_formula.move_to(taylor_gen_formula_copy)
+
+        # Find 'a' indices in the general formula: T(x)=\sum_{n=0}^{\infty}\frac{f^{\left(n\right)}\left(a\right)}{n!}(x-a)^{n}
+        # 'a' in f^(n)(a) ~ index 15
+        # 'a' in (x-a) ~ index 24
+        try:
+            a_in_fn_idx = taylor_gen_formula_copy.index_of_part_by_tex("a")
+            a_in_xa_idx = taylor_gen_formula_copy.index_of_part_by_tex("a", substring=False, start_index=a_in_fn_idx+1)
+            a_in_fn = taylor_gen_formula_copy[0][a_in_fn_idx]
+            a_in_xa = taylor_gen_formula_copy[0][a_in_xa_idx]
+        except Exception as e:
+             print(f"Warning: Could not find 'a' indices reliably in {taylor_gen_formula_copy.tex_string}. Using fallback indices. Error: {e}")
+             a_in_fn = taylor_gen_formula_copy[0][15]
+             a_in_xa = taylor_gen_formula_copy[0][24]
+
+        a_lab1 = MathTex(str(center_a), color=YELLOW).scale(text_scale).move_to(a_in_fn)
+        a_lab2 = MathTex(str(center_a), color=YELLOW).scale(text_scale).move_to(a_in_xa)
+
+        self.play(Transform(a_in_fn, a_lab1), Transform(a_in_xa, a_lab2))
+        self.wait(0.5)
+        # Transform the general formula into the specific one for this 'a'
+        self.play(
+            Transform(taylor_gen_formula_copy, taylor_spec_formula),
+            FadeOut(a_in_fn, rate_func=lambda t: smooth(1-t)),
+            FadeOut(a_in_xa, rate_func=lambda t: smooth(1-t))
+        )
+        self.wait(1)
+        # taylor_gen_formula_copy now holds the specific formula for 'a'
+
+
+        # --- Substitute f^(n)(a) - Handle n=0 case ---
+        # Position the n=0 warning text
+        text_n0_issue = Tex(r"$f^{(0)}(a) = \ln(a)$. Formula is for $n \geq 1$.", font_size=24)
+        text_n0_issue.next_to(nth_deriv_eval_source, DOWN, buff=0.5).set_color(YELLOW)
+        self.play(Write(text_n0_issue))
+        self.wait(1.5)
+
+        # Corrected Taylor form (n=0 term + sum from n=1)
+        final_form_part0 = rf"T(x) = \ln({center_a}) + \sum_{{n=1}}^{{\infty}}"
+        # Substitute the expression for f^(n)(a)
+        final_form_part1 = rf"\frac{{(-1)^{{n+1}}(n-1)!}}{{{center_a}^n \cdot n!}}"
+        final_form_part2 = rf"(x-{center_a})^n"
+        # Use brace initialization for grouping parts
+        taylor_final_form = MathTex(
+            final_form_part0, # Part 0
+            final_form_part1, # Part 1
+            final_form_part2, # Part 2
+            tex_template=TexTemplateLibrary.ctex
+        ).scale(text_scale)
+        taylor_final_form.move_to(taylor_gen_formula_copy) # Align with previous formula
+
+        # Box f^(n)(a) parts before transform
+        # Find indices:
+        # In nth_deriv_eval_source: The whole RHS = (-1)...
+        # In taylor_gen_formula_copy (specific form): f^(n)(a) part, e.g., [10:17]
+        try:
+             # RHS of evaluated derivative starts after '=' sign
+             eval_rhs_idx_start = nth_deriv_eval_source.index_of_part_by_tex("=") + 1
+             box_eval = SurroundingRectangle(nth_deriv_eval_source[0][eval_rhs_idx_start:], color=RED_C, buff=0.05)
+
+             # f^(n)(a) in the specific Taylor formula
+             taylor_fn_idx_start = taylor_gen_formula_copy.index_of_part_by_tex("f^{{(n)}}({center_a})")
+             taylor_fn_idx_end = taylor_fn_idx_start + len(f"f^{{(n)}}({center_a})") # Estimate end based on string length
+             # Refine end index if possible by finding the next part like '/n!'
+             try:
+                  nfact_idx = taylor_gen_formula_copy.index_of_part_by_tex("n!")
+                  if nfact_idx > taylor_fn_idx_start:
+                      taylor_fn_idx_end = nfact_idx -1 # Adjust end index
+             except:
+                 pass # Use estimated end if 'n!' not found after
+             box_taylor = SurroundingRectangle(taylor_gen_formula_copy[0][taylor_fn_idx_start:taylor_fn_idx_end], color=RED_C, buff=0.05)
+        
+        except Exception as e:
+             print(f"Warning: Could not find indices for boxing f^(n)(a). Skipping boxing. Error: {e}")
+             box_eval = VMobject() # Empty placeholders
+             box_taylor = VMobject()
+
+        if box_eval.has_points() and box_taylor.has_points():
+            self.play(Create(box_eval), Create(box_taylor))
+            self.wait(1)
+            self.play(FadeOut(box_eval), FadeOut(box_taylor))
+        else:
+            self.wait(0.5) # Wait even if boxes failed
+
+        self.play(FadeOut(text_n0_issue))
+        # Transform the specific formula into the expanded form (n=0 + sum)
+        self.play(Transform(taylor_gen_formula_copy, taylor_final_form))
+        self.wait(1)
+        # taylor_gen_formula_copy now holds the expanded form
+
+
+        # --- Simplify n! = n * (n-1)! ---
+        # Work with the transformed taylor_gen_formula_copy
+        term_to_simplify = taylor_gen_formula_copy[1] # The fraction part (part 1)
+
+        # Find indices within term_to_simplify (part 1)
+        # Example: rf"\frac{{(-1)^{{n+1}}(n-1)!}}{{{center_a}^n \cdot n!}}"
+        # Find "(n-1)!" and "n!"
+        try:
+            idx_n_minus_1_fact = term_to_simplify.index_of_part_by_tex("(n-1)!")
+            slice_n_minus_1_fact = slice(idx_n_minus_1_fact, idx_n_minus_1_fact + len("(n-1)!"))
+
+            idx_n_fact = term_to_simplify.index_of_part_by_tex("n!")
+            slice_n_fact = slice(idx_n_fact, idx_n_fact + len("n!"))
+
+            part_n_minus_1 = term_to_simplify[0][slice_n_minus_1_fact]
+            part_n = term_to_simplify[0][slice_n_fact]
+
+            # Check if parts have geometry before drawing lines
+            if part_n_minus_1.has_points() and part_n.has_points():
+                cancel_line1 = Line(part_n_minus_1.get_corner(UL), part_n_minus_1.get_corner(DR), color=RED, stroke_width=2)
+                cancel_line2 = Line(part_n.get_corner(UL), part_n.get_corner(DR), color=RED, stroke_width=2)
+                self.play(Create(cancel_line1), Create(cancel_line2))
+                self.wait(1)
+            else:
+                print("Warning: Parts for cancellation not found or empty. Skipping cancellation lines.")
+                self.wait(1)
+
+        except Exception as e:
+            print(f"Warning: Indices for cancellation not found. Skipping cancellation animation. Error: {e}")
+            self.wait(1) # Still wait if skipping
+
+        # Simplified Taylor form
+        simpl_form_part0 = rf"T(x) = \ln({center_a}) + \sum_{{n=1}}^{{\infty}}"
+        simpl_form_part1 = rf"\frac{{(-1)^{{n+1}}}}{{{center_a}^n \cdot n}}" # Simplified fraction
+        simpl_form_part2 = rf"(x-{center_a})^n"
+        taylor_simplified = MathTex(
+            simpl_form_part0, simpl_form_part1, simpl_form_part2,
+            tex_template=TexTemplateLibrary.ctex
+            ).scale(text_scale)
+        taylor_simplified.move_to(taylor_gen_formula_copy) # Align with previous
+
+        # Fade out lines and transform
+        if 'cancel_line1' in locals() and cancel_line1.has_points():
+             self.play(FadeOut(cancel_line1), FadeOut(cancel_line2))
+        self.play(Transform(taylor_gen_formula_copy, taylor_simplified))
+        self.wait(1)
+        # taylor_gen_formula_copy now holds the final, simplified form for center 'a'
+
+
+        # --- Move formulas and cleanup ---
+        self.play(FadeOut(nth_deriv_eval_source)) # Remove evaluated derivative
+        # Replace the general formula with this specific one and move to corner
+        self.taylor_formula_display = taylor_gen_formula_copy # Store handle
+        # Fade out the general formula that was behind it
+        self.play(
+            FadeOut(self.general_taylor_formula),
+            self.taylor_formula_display.animate.scale(0.8).to_corner(UR) # Move specific formula to UR
+        )
+        self.wait(1)
+
+
+        # --- Approximation Visualization ---
+        max_terms = 25 if center_a >= 1.5 else 15 # Adjust terms based on center
+        plot_radius_buffer = 1.0 # Extend plot range slightly beyond 2a
+        plot_x_end = min(self.axes.x_range[1], 2 * center_a + plot_radius_buffer)
+        plot_x_start = 0.01
+
+        # Dot at center 'a'
+        try:
+            log_a_val = math.log(center_a)
+            self.dot_a = Dot(self.axes.c2p(center_a, log_a_val), color=YELLOW, radius=0.06)
+            self.play(Create(self.dot_a))
+        except ValueError:
+            print(f"Cannot plot dot at center a={center_a} (log({center_a}) undefined)")
+            self.dot_a = VMobject() # Ensure it's empty
+        self.wait(0.5)
+
+        # Term counter setup
+        self.term_counter = MathTex("N=0").scale(0.7)
+        # Position relative to the specific formula in UR corner
+        self.term_counter.next_to(self.taylor_formula_display, DOWN, buff=0.2, aligned_edge=RIGHT)
+
+        # Initial graph (N=0)
+        self.approx_graph = VMobject() # Start empty
+        try:
+            initial_approx_func = lambda x: taylorseries_log(x, 0, a=center_a)
+            # Test function validity
+            test_y = initial_approx_func(center_a + 0.1 if center_a + 0.1 > 0 else 0.1)
+            if not isinstance(test_y, (int, float)) or math.isnan(test_y) or math.isinf(test_y):
+                 raise ValueError(f"taylorseries_log(N=0) returned invalid value: {test_y}")
+
+            current_approx_graph = self.axes.plot(
+                initial_approx_func,
+                x_range=[plot_x_start, plot_x_end],
+                color=ORANGE,
+                use_smoothing=False
+            )
+            self.approx_graph = current_approx_graph # Assign if successful
+
+            self.play(
+                Create(self.approx_graph),
+                Write(self.term_counter),
+                self.taylor_formula_display[0][:4].animate.set_color(ORANGE), # Color T(x)=
+            )
+            self.wait(0.5)
+        except (ValueError, TypeError, OverflowError) as e:
+             print(f"Error plotting N=0 approximation for a={center_a}: {e}")
+             # Show error briefly?
+             error_text = Tex("Plotting Error", color=RED).scale(0.5).move_to(self.axes.c2p(center_a, 0))
+             self.play(Write(error_text))
+             self.wait(1.5)
+             self.play(FadeOut(error_text))
+             # Ensure term counter is still created even if graph fails
+             if not self.term_counter.has_points():
+                 self.play(Write(self.term_counter))
+                 self.wait(0.5)
+
+
+        # Animate terms
+        last_successful_graph = self.approx_graph.copy() if self.approx_graph.has_points() else VMobject()
+
+        for i in range(1, max_terms + 1):
+            new_term_counter = MathTex(f"N={i}").scale(0.7).move_to(self.term_counter)
+            new_graph = VMobject()
+            try:
+                approx_func = lambda x: taylorseries_log(x, i, a=center_a)
+                # Optional: Test validity like for N=0
+                test_y = approx_func(center_a + 0.1 if center_a + 0.1 > 0 else 0.1)
+                if not isinstance(test_y, (int, float)) or math.isnan(test_y) or math.isinf(test_y):
+                     raise ValueError(f"taylorseries_log(N={i}) returned invalid value: {test_y}")
+
+                new_graph = self.axes.plot(
+                    approx_func,
+                    x_range=[plot_x_start, plot_x_end],
+                    color=ORANGE,
+                    use_smoothing=False # Helps visualize divergence/sharp turns
+                )
+
+                # Only play transform if self.approx_graph exists and has points
+                if self.approx_graph and self.approx_graph.has_points():
+                     self.play(
+                        Transform(self.approx_graph, new_graph),
+                        Transform(self.term_counter, new_term_counter),
+                        run_time=0.35 # Faster updates
+                     )
+                else: # If previous plots failed, just create the new graph
+                     self.approx_graph = new_graph # Assign the new graph
+                     self.play(
+                          Create(self.approx_graph),
+                          Transform(self.term_counter, new_term_counter),
+                          run_time=0.4
+                     )
+                last_successful_graph = self.approx_graph # Update last good graph
+
+            except (ValueError, TypeError, OverflowError) as e:
+                 print(f"Error plotting N={i} approximation for a={center_a}: {e}")
+                 # Restore last successful graph? Or just stop? Let's stop.
+                 # Revert term counter
+                 self.play(Transform(self.term_counter, MathTex(f"N={i-1}").scale(0.7).move_to(self.term_counter)))
+                 # Optionally show error text
+                 error_text = Tex(f"Plot Error N={i}", color=RED).scale(0.5).next_to(self.term_counter, DOWN)
+                 self.play(Write(error_text))
+                 self.wait(1)
+                 self.play(FadeOut(error_text))
+                 # If approx_graph became empty due to error, try restoring
+                 if not self.approx_graph.has_points() and last_successful_graph.has_points():
+                     self.add(last_successful_graph) # Add the last good one back
+                     self.approx_graph = last_successful_graph
+
+                 break # Stop animating terms for this center
+
+            self.wait(0.05 if i > 5 else 0.1) # Shorter pauses for later terms
+
+        self.wait(1)
+
+
+        # --- Show Interval and Radius ---
+        interval_start = 0 # Singularity
+        interval_end = 2 * center_a
+        radius = center_a
+
+        # Visually clamp interval end to axes range if necessary
+        plot_interval_end_vis = min(interval_end, self.axes.x_range[1])
+        # Ensure start point is slightly off the y-axis for visibility
+        plot_interval_start_vis = max(interval_start, self.axes.x_range[0]) + 0.01
+
+        # Interval Brace (only draw if end > start within plot range)
+        if plot_interval_end_vis > plot_interval_start_vis:
+            try:
+                interval_brace_obj = BraceBetweenPoints(
+                    self.axes.c2p(plot_interval_start_vis, 0),
+                    self.axes.c2p(plot_interval_end_vis, 0),
+                    direction=UP, color=RED_C # Use a different red
+                )
+                interval_text_str = f"Converges on $({interval_start}, {interval_end})$" if interval_end > 0 else "No Convergence (a<=0)"
+                interval_text_obj = interval_brace_obj.get_text(interval_text_str).scale(0.6)
+                
+                self.play(GrowFromCenter(interval_brace_obj), Write(interval_text_obj))
+                self.convergence_elements.add(interval_brace_obj, interval_text_obj) # Add to group
+            except Exception as e:
+                 print(f"Error creating interval brace for a={center_a}: {e}")
+        else:
+            print(f"Warning: Cannot draw interval brace for a={center_a} (visual range too small or invalid).")
+        self.wait(0.5)
+
+        # Radius Brace (from 'a' to interval_end, visually clamped)
+        # Only draw if the visual end is greater than the center 'a'
+        if plot_interval_end_vis > center_a:
+            try:
+                radius_brace_obj = BraceBetweenPoints(
+                    self.axes.c2p(center_a, 0),
+                    self.axes.c2p(plot_interval_end_vis, 0),
+                    direction=DOWN, color=YELLOW_D # Use a different yellow
+                )
+                radius_text_str = f"Radius $R = {radius}$" if radius > 0 else "Invalid Radius"
+                radius_text_obj = radius_brace_obj.get_text(radius_text_str).scale(0.6)
+                
+                self.play(GrowFromCenter(radius_brace_obj), Write(radius_text_obj))
+                self.convergence_elements.add(radius_brace_obj, radius_text_obj) # Add to group
+            except Exception as e:
+                 print(f"Error creating radius brace for a={center_a}: {e}")
+        else:
+             print(f"Warning: Cannot draw radius brace for a={center_a} (visual range too small or invalid).")
+
+        self.wait(2)
+
+
+    def show_general_radius(self):
+        """Visualizes the general radius of convergence based on singularity."""
+        print("Showing General Radius Explanation")
+        # --- Cleanup from previous center (e.g., a=2) ---
+        cleanup_targets = [
+            self.approx_graph,
+            self.taylor_formula_display, # Specific T(x) for a=2
+            self.dot_a,
+            self.term_counter,
+            self.general_taylor_formula, # Should have been faded by show_taylor_for_center
+            self.result_arrow           # Arrow connecting formulas
+        ]
+        if self.convergence_elements and len(self.convergence_elements) > 0:
+             cleanup_targets.append(self.convergence_elements)
+        
+        objects_to_fade = [m for m in cleanup_targets if m and m.has_points()]
+        
+        # Also fade the specific f^(n)(x) formula (UL corner) and log label
+        objects_to_fade.append(self.nth_deriv_formula_display)
+        objects_to_fade.append(self.log_label)
+
+        # Filter None or empty Mobjects again just in case
+        objects_to_fade = [m for m in objects_to_fade if m and m.has_points()]
+
+        if objects_to_fade:
+            self.play(*[FadeOut(m) for m in objects_to_fade])
+        
+        self.convergence_elements = VGroup() # Reset group
+        self.wait(1)
+        # Keep axes and log graph visible
+
+        # --- General Case Visualization ---
+        title = Tex("General Case: Radius of Convergence for $f(x)=\ln(x)$", font_size=36).to_edge(UP)
+        self.play(Write(title))
+        self.wait(0.5)
+
+        # Singularity at x=0
+        singularity_pt_scene = self.axes.c2p(0, 0) # Scene coordinates of origin
+        
+        # Check if singularity is within y-axis range before drawing line
+        y_ax_min, y_ax_max = self.axes.y_range[:2]
+        singularity_line = DashedLine(
+            self.axes.c2p(0, y_ax_min),
+            self.axes.c2p(0, y_ax_max),
+            color=RED, stroke_width=3
+        )
+        singularity_label = Tex("Singularity!", color=RED, font_size=28).next_to(self.axes.c2p(0, 1.5), RIGHT, buff=0.1)
+        
+        # Make sure the original log graph is brought to front if overlapping
+        self.bring_to_front(self.log_graph) 
+        self.play(Create(singularity_line), Write(singularity_label))
+        self.wait(1)
+
+        # General center 'a' (ValueTracker)
+        initial_a = 1.5
+        a_val = ValueTracker(initial_a)
+        
+        # Dot representing 'a' on the x-axis
+        a_dot = Dot(color=YELLOW, radius=0.08)
+        a_label = MathTex("a", color=YELLOW).scale(0.8)
+
+        # Updaters for dot and label position
+        a_dot.add_updater(lambda m: m.move_to(self.axes.c2p(a_val.get_value(), 0)))
+        a_label.add_updater(lambda m: m.next_to(a_dot, DOWN, buff=0.15))
+        
+        # Radius line (from a to singularity at x=0)
+        radius_line = Line(color=YELLOW, stroke_width=5)
+        radius_line.add_updater(
+            lambda m: m.put_start_and_end_on(
+                self.axes.c2p(a_val.get_value(), 0), # Start at 'a' on x-axis
+                self.axes.c2p(0, 0)                  # End at singularity (origin)
+            )
+        )
+
+        # Radius Brace and Text (with updaters)
+        radius_brace = Brace(radius_line, direction=DOWN, color=YELLOW) # Initial dummy brace
+        radius_text = MathTex("R = a", color=YELLOW).scale(0.7)
+
+        def radius_brace_updater(mob):
+            current_a = a_val.get_value()
+            # Only update if 'a' is positive and line has significant length
+            if current_a > 1e-3 and radius_line.get_length() > 1e-3:
+                 # Recreate brace based on current line geometry
+                 new_brace = Brace(radius_line, direction=DOWN, color=YELLOW)
+                 mob.become(new_brace) # Keep become here to update shape based on line
+                 # Update text content and position
+                 new_text = MathTex(f"R = {current_a:.1f}", color=YELLOW).scale(0.7)
+                 new_text.next_to(mob, DOWN, buff=0.1)
+                 radius_text.become(new_text) # Use become to replace text content
+            else:
+                 # If a is too small or zero, make brace have no points and text empty
+                 mob.set_points(np.zeros((0, 3))) # <-- SAFER: Make brace have no points
+                 radius_text.become(VMobject()) # Keep this for the text
+
+        radius_brace.add_updater(radius_brace_updater)
+        # Text updater depends on brace existing (handled within radius_brace_updater)
+
+        # Interval Brace and Text (with updaters)
+        interval_brace = Brace(Line(LEFT, RIGHT), direction=UP, color=BLUE) # Initial dummy
+        interval_text = MathTex("(0, 2a)", color=BLUE).scale(0.7)
+
+        def interval_updater(mob):
+            current_a = a_val.get_value()
+            # Interval is (0, 2a)
+            start_x_interval = 0
+            end_x_interval = 2 * current_a
+
+            # Clamp to visual axes range
+            plot_start_x = max(self.axes.x_range[0], start_x_interval) + 0.01 # Avoid exactly 0
+            plot_end_x = min(self.axes.x_range[1], end_x_interval)
+
+            # Only draw if the visual interval is valid
+            if plot_end_x > plot_start_x and current_a > 1e-3:
+                 # Use BraceBetweenPoints for better axis alignment
+                 new_brace = BraceBetweenPoints(
+                     self.axes.c2p(plot_start_x, 0),
+                     self.axes.c2p(plot_end_x, 0),
+                     direction=UP, color=BLUE
+                 )
+                 mob.become(new_brace) # Keep become here to update shape
+                 # Update text content and position
+                 new_text = MathTex(f"(0, {end_x_interval:.1f})", color=BLUE).scale(0.7)
+                 new_text.next_to(mob, UP, buff=0.1)
+                 interval_text.become(new_text) # Use become to replace text content
+            else:
+                 mob.set_points(np.zeros((0, 3))) # <-- SAFER: Make brace have no points
+                 interval_text.become(VMobject()) # Keep this for the text
+
+        interval_brace.add_updater(interval_updater)
+        # Text updater depends on interval_brace (handled within interval_updater)
+
+
+        # --- Initial Creation of General Elements ---
+        # Create dot and label first
+        self.play(Create(a_dot), Write(a_label))
+        self.wait(0.5)
+        # Manually call updaters once to initialize geometry before Create animations
+        radius_line.update()
+        radius_brace.update()
+        interval_brace.update()
+
+        # Create lines and braces if they have points after update
+        create_anims = []
+        if radius_line.has_points(): create_anims.append(Create(radius_line))
+        if radius_brace.has_points(): create_anims.append(GrowFromCenter(radius_brace))
+        if radius_text.has_points(): create_anims.append(Write(radius_text))
+        if interval_brace.has_points(): create_anims.append(GrowFromCenter(interval_brace))
+        if interval_text.has_points(): create_anims.append(Write(interval_text))
+
+        if create_anims:
+            self.play(*create_anims)
+        else:
+            print("Warning: Could not create initial general radius elements.")
+
+        self.wait(1)
+
+
+        # --- Animate 'a' changing ---
+        explanation_text = Tex(
+            "Distance from center $a$ to singularity at $x=0$ determines radius $R=a$.",
+            font_size=28
+        ).next_to(title, DOWN, buff=0.3)
+        self.play(Write(explanation_text))
+        self.wait(1)
+
+        # Animate 'a' values
+        target_a_values = [1.0, 2.5, 0.5, initial_a] # Values to animate through
+        run_times = [2, 2.5, 2, 1.5]
+
+        for target_a, rt in zip(target_a_values, run_times):
+             self.play(a_val.animate.set_value(target_a), run_time=rt)
+             self.wait(1)
+
+        self.wait(1) # Pause at the final position
+
+
+        # --- Final Conclusion Text ---
+        conclusion = Tex(
+            r"Taylor series for $\ln(x)$ centered at $a>0$ converges on $(0, 2a)$ with radius $R=a$.",
+            font_size=32
+        ).next_to(self.axes, DOWN, buff=0.5).shift_onto_screen() # Ensure it's visible
+        self.play(Write(conclusion))
+        self.wait(3)
+
+        # --- Cleanup Updaters and Fade Out ---
+        print("Clearing updaters...")
+        mobjects_with_updaters = [a_dot, a_label, radius_line, radius_brace, interval_brace] # radius_text/interval_text updated via brace updaters
+        for mobj in mobjects_with_updaters:
+            mobj.clear_updaters()
+
+        print("Fading out general explanation elements...")
+        elements_to_fade_general = [
+             title, singularity_line, singularity_label,
+             a_dot, a_label, radius_line, radius_brace, radius_text,
+             interval_brace, interval_text,
+             explanation_text, conclusion
+             ]
+        # Filter out any potentially empty VMobjects again
+        elements_to_fade_general = [m for m in elements_to_fade_general if m and m.has_points()]
+
+        if elements_to_fade_general:
+            self.play(*[FadeOut(m) for m in elements_to_fade_general])
+        self.wait(1)
+
 class ComplexRadiusOfConvergence_v2(ThreeDScene): # Use ThreeDScene
     # --- Helper for 3D Surface ---
     def func_3d_abs_1_over_1pz2(self, x, y):
@@ -2394,8 +3484,8 @@ class ComplexRadiusOfConvergence_v2(ThreeDScene): # Use ThreeDScene
         label_re = Tex("Re(z)", font_size=24).move_to(axes_3d.x_axis.get_end() + 0.4*RIGHT)
         label_im = Tex("Im(z)", font_size=24).move_to(axes_3d.z_axis.get_end() + 0.4*OUT)
         label_abs = Tex("$|f(z)|$", font_size=24).move_to(axes_3d.y_axis.get_top() + 0.4*UP)
-        self.add_fixed_in_frame_mobjects(label_re)
-        self.add_fixed_in_frame_mobjects(label_im)
+        #self.add_fixed_in_frame_mobjects(label_re) no idea how to make it face the camera during rotation
+        #self.add_fixed_in_frame_mobjects(label_im) no idea how to make it face the camera during rotation
         self.add_fixed_in_frame_mobjects(label_abs)
         labels_3d_group = VGroup(label_re, label_im, label_abs)
 
